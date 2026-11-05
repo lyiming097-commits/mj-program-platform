@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "id": "competitive",
+  "name": "竞品中心",
+  "description": "竞品情报采集与公司级竞品库",
+  "icon": "Archive",
+  "status": "active",
+  "order": 40,
+  "portal": {"visible": true, "path": "/competitive/release-20260910-search-location/"},
+  "auth": {
+    "internalService": {
+      "name": "competitive-backend",
+      "service": "competitive-backend"
+    }
+  },
+  "gatewayNetworks": ["competitive_edge_net"],
+  "routes": [
+    {"path": "/api/competitive/", "target": "competitive-backend", "port": 8000, "clientMaxBodySize": "201m"},
+    {"path": "/competitive", "exact": true, "target": "competitive-frontend"},
+    {"path": "/competitive/", "target": "competitive-frontend"}
+  ],
+  "secrets": [
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [
+        {"service": "competitive-backend", "env": "DJANGO_SECRET_KEY"},
+        {"service": "competitive-maintenance", "env": "DJANGO_SECRET_KEY"}
+      ]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {"service": "competitive-backend", "env": "DB_PASSWORD"},
+        {"service": "competitive-maintenance", "env": "DB_PASSWORD"},
+        {"service": "competitive-postgres", "env": "POSTGRES_PASSWORD"}
+      ]
+    },
+    {
+      "id": "amap-js-key",
+      "file": "amap-js-key.secret",
+      "required": false,
+      "mounts": [{"service": "competitive-backend", "env": "AMAP_JS_KEY"}]
+    },
+    {
+      "id": "amap-security-code",
+      "file": "amap-security-code.secret",
+      "required": false,
+      "mounts": [{"service": "competitive-backend", "env": "AMAP_SECURITY_KEY"}]
+    }
+  ],
+  "compose": {
+    "services": {
+      "competitive-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/competitive-backend:${APP_VERSION:-local}",
+        "container_name": "mj_competitive_backend",
+        "depends_on": {
+          "competitive-postgres": {"condition": "service_healthy"},
+          "redis": {"condition": "service_started"}
+        },
+        "networks": ["competitive_edge_net", "mj_services", "competitive_db_net"],
+        "volumes": ["competitive_django_uploads:/app/uploads"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/competitive/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DB_ENGINE": "postgresql",
+          "DB_HOST": "competitive-postgres",
+          "DB_NAME": "competitive_db",
+          "DB_USER": "competitive_user",
+          "DJANGO_DEBUG": "0",
+          "DJANGO_ALLOWED_HOSTS": "oa.hzmaijie.com,localhost,127.0.0.1,competitive-backend",
+          "DJANGO_CSRF_TRUSTED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "CORS_ALLOW_ALL_ORIGINS": "0",
+          "COMPETITIVE_ALLOWED_WRITE_ORIGINS": "${COMPETITIVE_ALLOWED_WRITE_ORIGINS:-https://oa.hzmaijie.com:4433}",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0",
+          "UPLOAD_DIR": "/app/uploads",
+          "MAX_UPLOAD_BYTES": "209715200",
+          "PRODUCT_ARCHIVE_CATALOG_URL": "http://product-archive-backend:8000/api/internal/product-catalog/",
+          "PRODUCT_ARCHIVE_CATALOG_TIMEOUT_SECONDS": "8",
+          "PRODUCT_ARCHIVE_CATALOG_CACHE_TTL_SECONDS": "300",
+          "PRODUCT_ARCHIVE_CATALOG_STALE_TTL_SECONDS": "86400"
+        },
+        "healthcheck": {
+          "test": "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready', timeout=3).read()\""
+        }
+      },
+      "competitive-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/competitive-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_competitive_frontend",
+        "networks": ["competitive_edge_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/competitive/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}",
+            "VITE_DING_CORP_ID": "${VITE_DING_CORP_ID:-}"
+          }
+        },
+        "environment": {"WEB_SERVICE_NAME": "competitive-frontend"}
+      },
+      "competitive-maintenance": {
+        "image": "mj_program/competitive-backend:${APP_VERSION:-local}",
+        "container_name": "mj_competitive_maintenance",
+        "restart": "unless-stopped",
+        "depends_on": {
+          "competitive-backend": {"condition": "service_healthy"}
+        },
+        "command": [
+          "python",
+          "manage.py",
+          "run_competitive_maintenance",
+          "--interval",
+          "60"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/competitive/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DB_ENGINE": "postgresql",
+          "DB_HOST": "competitive-postgres",
+          "DB_NAME": "competitive_db",
+          "DB_USER": "competitive_user",
+          "DJANGO_DEBUG": "0",
+          "RUN_MIGRATIONS": "0",
+          "COLLECT_STATIC": "0",
+          "UPLOAD_DIR": "/app/uploads"
+        },
+        "volumes": ["competitive_django_uploads:/app/uploads"],
+        "networks": ["competitive_db_net"],
+        "healthcheck": {
+          "test": "python -c \"from pathlib import Path; assert b'run_competitive_maintenance' in Path('/proc/1/cmdline').read_bytes()\""
+        }
+      },
+      "competitive-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_competitive_postgres",
+        "environment": {
+          "POSTGRES_USER": "competitive_user",
+          "POSTGRES_DB": "competitive_db"
+        },
+        "volumes": ["competitive_django_postgres_data:/var/lib/postgresql/data"],
+        "networks": ["competitive_db_net"]
+      }
+    },
+    "networks": {
+      "competitive_edge_net": {
+        "name": "mj_program_competitive_edge",
+        "ipam": {"driver": "default", "config": [{"subnet": "198.19.12.0/24", "gateway": "198.19.12.1"}]}
+      },
+      "competitive_db_net": {
+        "name": "mj_program_competitive_db",
+        "ipam": {"driver": "default", "config": [{"subnet": "198.19.13.0/24", "gateway": "198.19.13.1"}]},
+        "internal": true
+      }
+    },
+    "volumes": {
+      "competitive_django_postgres_data": {},
+      "competitive_django_uploads": {}
+    }
+  }
+}

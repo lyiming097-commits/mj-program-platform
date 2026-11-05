@@ -1,0 +1,22 @@
+{
+  "name": "迈杰现场服务",
+  "appid": "__UNI__MJAFTERSALES",
+  "description": "迈杰服务现场任务协同",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "uniStatistics": {
+    "enable": false
+  },
+  "mp-weixin": {
+    "appid": "wxce762bf0d0e8f3c3",
+    "libVersion": "3.17.2",
+    "setting": {
+      "urlCheck": true,
+      "minified": true,
+      "es6": true,
+      "postcss": true
+    },
+    "usingComponents": true
+  }
+}

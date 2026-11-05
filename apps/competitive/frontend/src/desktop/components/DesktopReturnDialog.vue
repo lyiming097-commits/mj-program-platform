@@ -1,0 +1,21 @@
+<script setup>
+import { backdropDismiss as vBackdropDismiss } from "@platform-ui/backdrop-dismiss.js";
+import { MessageSquareMore, X } from "lucide-vue-next";
+import { computed, shallowRef, watch } from "vue";
+import UnsavedChangesDialog from "@/shared/UnsavedChangesDialog.vue";
+
+const props = defineProps({ open: Boolean, initialValue: { type: String, default: "" }, busy: Boolean });
+const emit = defineEmits(["close", "confirm"]);
+const value = shallowRef("");
+const error = shallowRef("");
+const discardOpen = shallowRef(false);
+const dirty = computed(() => value.value !== props.initialValue);
+watch(() => props.open, (open) => { if (open) { value.value = props.initialValue; error.value = ""; } }, { immediate: true });
+function submit() { const comment = value.value.trim(); if (!comment) { error.value = "请填写补充原因或审核意见"; return; } emit("confirm", comment); }
+function requestClose() { if (props.busy) return; if (dirty.value) discardOpen.value = true; else emit("close"); }
+function discardAndClose() { value.value = props.initialValue; error.value = ""; discardOpen.value = false; emit("close"); }
+</script>
+<template><Teleport to="body"><Transition name="modal"><div v-if="open" class="modal-layer" v-backdrop-dismiss="requestClose"><section class="modal-panel" role="dialog" aria-modal="true" aria-label="补充原因 / 审核意见"><header><span><MessageSquareMore :size="18" /></span><div><h2>补充原因 / 审核意见</h2><p>说明需要业务员补充、核实或修改的内容</p></div><button type="button" :disabled="busy" aria-label="关闭" @click="requestClose"><X :size="18" /></button></header><div class="modal-body"><label>审核意见<em>*</em></label><textarea v-model="value" :disabled="busy" maxlength="2000" rows="6" autofocus placeholder="例如：请补充现场照片、产品报价依据，并核实适用地区。" @input="error = ''" /><div class="meta"><span>{{ error }}</span><small>{{ value.length }}/2000</small></div></div><footer><button type="button" class="btn" :disabled="busy" @click="requestClose">取消</button><button type="button" class="btn btn-danger confirm" :disabled="busy" @click="submit">{{ busy ? '正在退回...' : '确认退回' }}</button></footer></section></div></Transition></Teleport><UnsavedChangesDialog :open="discardOpen" @cancel="discardOpen = false" @confirm="discardAndClose" /></template>
+<style scoped>
+.modal-layer { position: fixed; inset: 0; z-index: 115; display: grid; place-items: center; background: rgba(15,23,42,.34); padding: 20px; }.modal-panel { width: min(510px, calc(100vw - 40px)); overflow: hidden; border-radius: 8px; background: #fff; box-shadow: 0 24px 64px rgba(15,23,42,.24); }.modal-panel > header { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #dfe6ee; padding: 14px 16px; }.modal-panel > header > span { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 6px; background: #fffbeb; color: #d97706; }.modal-panel > header > div { min-width: 0; flex: 1; }.modal-panel h2 { margin: 0; color: #0f172a; font-size: 14px; }.modal-panel header p { margin: 4px 0 0; color: #64748b; font-size: 10px; }.modal-panel header button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #64748b; }.modal-body { padding: 16px; }.modal-body label { color: #475569; font-size: 11px; font-weight: 700; }.modal-body em { margin-left: 3px; color: #e11d48; font-style: normal; }.modal-body textarea { width: 100%; min-height: 132px; margin-top: 7px; resize: vertical; border: 1px solid #d9e1ea; border-radius: 7px; outline: 0; background: #fffbf5; padding: 10px; color: #334155; font-size: 12px; line-height: 1.55; }.modal-body textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }.meta { display: flex; min-height: 20px; align-items: center; justify-content: space-between; margin-top: 4px; }.meta span { color: #e11d48; font-size: 9px; }.meta small { color: #94a3b8; font-size: 9px; }.modal-panel footer { display: flex; justify-content: flex-end; gap: 7px; border-top: 1px solid #dfe6ee; background: #f8fafc; padding: 10px 16px; }.confirm { border-color: #dc2626; background: #dc2626; color: #fff; }.modal-enter-active,.modal-leave-active{transition:opacity .16s ease}.modal-enter-from,.modal-leave-to{opacity:0}
+</style>

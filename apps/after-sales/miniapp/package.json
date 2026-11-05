@@ -1,0 +1,35 @@
+{
+  "name": "mj-after-sales-miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin:local": "uni build -p mp-weixin --mode development && node tools/stage-devtools-bridge.mjs",
+    "build:mp-weixin": "uni build -p mp-weixin && node tools/stage-devtools-bridge.mjs",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-alpha-5020520260829001",
+    "@dcloudio/uni-components": "3.0.0-alpha-5020520260829001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5020520260829001",
+    "vue": "3.4.21"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "3.4.31",
+    "@dcloudio/uni-cli-shared": "3.0.0-alpha-5020520260829001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5020520260829001",
+    "@vue/tsconfig": "0.5.1",
+    "typescript": "5.4.5",
+    "vite": "5.2.8",
+    "vue-tsc": "2.2.12"
+  },
+  "overrides": {
+    "@vue/babel-plugin-jsx": "1.2.2",
+    "@vue/babel-plugin-resolve-type": "1.2.2",
+    "@vue/compiler-core": "3.4.21",
+    "@vue/compiler-dom": "3.4.21",
+    "@vue/compiler-sfc": "3.4.21",
+    "@vue/shared": "3.4.21"
+  }
+}

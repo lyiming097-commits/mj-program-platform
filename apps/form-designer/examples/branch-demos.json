@@ -1,0 +1,1808 @@
+{
+  "version": 1,
+  "localOnly": true,
+  "examples": [
+    {
+      "form": {
+        "id": "demo-branch-purchase",
+        "name": "【示例】设备采购申请",
+        "description": "采购金额大于10000元：主管审批→管理员复核→采购执行；10000元及以下：主管审批→采购执行。修改采购金额可对比分支。\n演示账号：主管 approver；复核 admin；执行 employee-a / employee-b。",
+        "fields": [
+          {
+            "id": "subject",
+            "label": "申请事由",
+            "type": "text",
+            "defaultValue": "设备采购申请演示",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入申请事由"
+          },
+          {
+            "id": "item_name",
+            "label": "采购物品",
+            "type": "text",
+            "defaultValue": "办公笔记本电脑",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入采购物品"
+          },
+          {
+            "id": "amount",
+            "label": "采购金额（元）",
+            "type": "number",
+            "defaultValue": "8000",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入采购金额（元）"
+          },
+          {
+            "id": "supplier",
+            "label": "供应商",
+            "type": "text",
+            "defaultValue": "演示供应商",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入供应商"
+          },
+          {
+            "id": "notes",
+            "label": "补充说明",
+            "type": "textarea",
+            "defaultValue": "仅供本地演示，无真实业务。",
+            "options": [],
+            "required": false,
+            "width": "full",
+            "placeholder": "请输入补充说明"
+          }
+        ],
+        "permissions": {
+          "accessMode": "all",
+          "members": [],
+          "canSubmit": true,
+          "canViewOwnRecords": true,
+          "canViewAllRecords": false,
+          "canExportRecords": false
+        }
+      },
+      "workflow": {
+        "id": "demo-branch-purchase",
+        "name": "【示例】设备采购申请",
+        "category": "采购流程",
+        "applicantFieldPermissions": [
+          {
+            "fieldId": "subject",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "item_name",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "amount",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "supplier",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "notes",
+            "permission": "editable"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "发起申请",
+            "formId": "demo-branch-purchase"
+          },
+          {
+            "id": "amount-check",
+            "type": "condition",
+            "name": "采购金额判断",
+            "branches": [
+              {
+                "id": "amount-check-matched",
+                "name": "大额采购（超过10000元）",
+                "fieldId": "amount",
+                "operator": "gt",
+                "value": "10000",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "high-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "item_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "supplier",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "high-review",
+                    "type": "approval",
+                    "name": "管理员复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "item_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "supplier",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "amount-check-default",
+                "name": "常规采购（10000元及以下）",
+                "isDefault": true,
+                "nodes": [
+                  {
+                    "id": "normal-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "item_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "supplier",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "purchase-execute",
+            "type": "executor",
+            "name": "采购执行",
+            "assigneeMode": "specified",
+            "assignees": [
+              "employee-a"
+            ],
+            "fieldPermissions": [
+              {
+                "fieldId": "subject",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "item_name",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "amount",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "supplier",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "notes",
+                "permission": "readonly"
+              }
+            ]
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "name": "小额",
+          "values": {
+            "subject": "设备采购申请演示",
+            "item_name": "办公笔记本电脑",
+            "amount": 9999,
+            "supplier": "演示供应商",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "采购执行"
+          ]
+        },
+        {
+          "name": "边界10000",
+          "values": {
+            "subject": "设备采购申请演示",
+            "item_name": "办公笔记本电脑",
+            "amount": 10000,
+            "supplier": "演示供应商",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "采购执行"
+          ]
+        },
+        {
+          "name": "大额",
+          "values": {
+            "subject": "设备采购申请演示",
+            "item_name": "办公笔记本电脑",
+            "amount": 10001,
+            "supplier": "演示供应商",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员复核",
+            "采购执行"
+          ]
+        }
+      ]
+    },
+    {
+      "form": {
+        "id": "demo-branch-expense",
+        "name": "【示例】费用报销申请",
+        "description": "报销金额大于3000元增加管理员复核；3000元及以下仅主管审批。两条路径均由employee-b完成财务登记。\n演示账号：主管 approver；复核 admin；执行 employee-a / employee-b。",
+        "fields": [
+          {
+            "id": "subject",
+            "label": "申请事由",
+            "type": "text",
+            "defaultValue": "费用报销申请演示",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入申请事由"
+          },
+          {
+            "id": "expense_type",
+            "label": "费用类型",
+            "type": "select",
+            "defaultValue": "差旅费",
+            "options": [
+              "差旅费",
+              "办公费",
+              "业务招待费"
+            ],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入费用类型"
+          },
+          {
+            "id": "amount",
+            "label": "报销金额（元）",
+            "type": "number",
+            "defaultValue": "1500",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入报销金额（元）"
+          },
+          {
+            "id": "receipt",
+            "label": "票据说明",
+            "type": "text",
+            "defaultValue": "演示电子票据",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入票据说明"
+          },
+          {
+            "id": "notes",
+            "label": "补充说明",
+            "type": "textarea",
+            "defaultValue": "仅供本地演示，无真实业务。",
+            "options": [],
+            "required": false,
+            "width": "full",
+            "placeholder": "请输入补充说明"
+          }
+        ],
+        "permissions": {
+          "accessMode": "all",
+          "members": [],
+          "canSubmit": true,
+          "canViewOwnRecords": true,
+          "canViewAllRecords": false,
+          "canExportRecords": false
+        }
+      },
+      "workflow": {
+        "id": "demo-branch-expense",
+        "name": "【示例】费用报销申请",
+        "category": "财务流程",
+        "applicantFieldPermissions": [
+          {
+            "fieldId": "subject",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "expense_type",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "amount",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "receipt",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "notes",
+            "permission": "editable"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "发起申请",
+            "formId": "demo-branch-expense"
+          },
+          {
+            "id": "expense-manager",
+            "type": "approval",
+            "name": "主管审批",
+            "assigneeMode": "specified",
+            "assignees": [
+              "approver"
+            ],
+            "approvalMode": "sequential",
+            "approvalButtons": [
+              {
+                "key": "agree",
+                "name": "同意",
+                "enabled": true,
+                "opinionMode": "optional",
+                "batchEnabled": false
+              },
+              {
+                "key": "reject",
+                "name": "拒绝",
+                "enabled": true,
+                "opinionMode": "required",
+                "batchEnabled": false
+              }
+            ],
+            "fieldPermissions": [
+              {
+                "fieldId": "subject",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "expense_type",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "amount",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "receipt",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "notes",
+                "permission": "readonly"
+              }
+            ]
+          },
+          {
+            "id": "expense-check",
+            "type": "condition",
+            "name": "报销金额判断",
+            "branches": [
+              {
+                "id": "expense-check-matched",
+                "name": "大额报销（超过3000元）",
+                "fieldId": "amount",
+                "operator": "gt",
+                "value": "3000",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "expense-review",
+                    "type": "approval",
+                    "name": "管理员复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "expense_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "receipt",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "expense-check-default",
+                "name": "常规报销（3000元及以下）",
+                "isDefault": true,
+                "nodes": []
+              }
+            ]
+          },
+          {
+            "id": "expense-register",
+            "type": "executor",
+            "name": "财务登记",
+            "assigneeMode": "specified",
+            "assignees": [
+              "employee-b"
+            ],
+            "fieldPermissions": [
+              {
+                "fieldId": "subject",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "expense_type",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "amount",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "receipt",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "notes",
+                "permission": "readonly"
+              }
+            ]
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "name": "小额",
+          "values": {
+            "subject": "费用报销申请演示",
+            "expense_type": "差旅费",
+            "amount": 2999,
+            "receipt": "演示电子票据",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "财务登记"
+          ]
+        },
+        {
+          "name": "边界3000",
+          "values": {
+            "subject": "费用报销申请演示",
+            "expense_type": "差旅费",
+            "amount": 3000,
+            "receipt": "演示电子票据",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "财务登记"
+          ]
+        },
+        {
+          "name": "大额",
+          "values": {
+            "subject": "费用报销申请演示",
+            "expense_type": "差旅费",
+            "amount": 3001,
+            "receipt": "演示电子票据",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员复核",
+            "财务登记"
+          ]
+        }
+      ]
+    },
+    {
+      "form": {
+        "id": "demo-branch-leave",
+        "name": "【示例】员工请假申请",
+        "description": "请假3天及以上：主管审批→管理员复核；不足3天：主管审批。演示天数阈值分支。\n演示账号：主管 approver；复核 admin；执行 employee-a / employee-b。",
+        "fields": [
+          {
+            "id": "subject",
+            "label": "申请事由",
+            "type": "text",
+            "defaultValue": "员工请假申请演示",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入申请事由"
+          },
+          {
+            "id": "leave_type",
+            "label": "假期类型",
+            "type": "select",
+            "defaultValue": "事假",
+            "options": [
+              "事假",
+              "年假",
+              "病假"
+            ],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入假期类型"
+          },
+          {
+            "id": "days",
+            "label": "请假天数",
+            "type": "number",
+            "defaultValue": "1",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入请假天数"
+          },
+          {
+            "id": "reason",
+            "label": "请假原因",
+            "type": "textarea",
+            "defaultValue": "个人事务（演示）",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入请假原因"
+          },
+          {
+            "id": "notes",
+            "label": "补充说明",
+            "type": "textarea",
+            "defaultValue": "仅供本地演示，无真实业务。",
+            "options": [],
+            "required": false,
+            "width": "full",
+            "placeholder": "请输入补充说明"
+          }
+        ],
+        "permissions": {
+          "accessMode": "all",
+          "members": [],
+          "canSubmit": true,
+          "canViewOwnRecords": true,
+          "canViewAllRecords": false,
+          "canExportRecords": false
+        }
+      },
+      "workflow": {
+        "id": "demo-branch-leave",
+        "name": "【示例】员工请假申请",
+        "category": "人事流程",
+        "applicantFieldPermissions": [
+          {
+            "fieldId": "subject",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "leave_type",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "days",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "reason",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "notes",
+            "permission": "editable"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "发起申请",
+            "formId": "demo-branch-leave"
+          },
+          {
+            "id": "days-check",
+            "type": "condition",
+            "name": "请假天数判断",
+            "branches": [
+              {
+                "id": "days-check-matched",
+                "name": "长假（3天及以上）",
+                "fieldId": "days",
+                "operator": "gte",
+                "value": "3",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "long-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "leave_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "days",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "reason",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "long-review",
+                    "type": "approval",
+                    "name": "管理员复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "leave_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "days",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "reason",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "days-check-default",
+                "name": "短假（不足3天）",
+                "isDefault": true,
+                "nodes": [
+                  {
+                    "id": "short-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "leave_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "days",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "reason",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "name": "短假",
+          "values": {
+            "subject": "员工请假申请演示",
+            "leave_type": "事假",
+            "days": 2,
+            "reason": "个人事务（演示）",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批"
+          ]
+        },
+        {
+          "name": "边界3天",
+          "values": {
+            "subject": "员工请假申请演示",
+            "leave_type": "事假",
+            "days": 3,
+            "reason": "个人事务（演示）",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员复核"
+          ]
+        }
+      ]
+    },
+    {
+      "form": {
+        "id": "demo-branch-seal",
+        "name": "【示例】行政用印申请",
+        "description": "选择合同用印：主管审批→管理员复核→用印办理；选择普通证明：主管审批→用印办理。演示下拉字段相等判断。\n演示账号：主管 approver；复核 admin；执行 employee-a / employee-b。",
+        "fields": [
+          {
+            "id": "subject",
+            "label": "申请事由",
+            "type": "text",
+            "defaultValue": "行政用印申请演示",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入申请事由"
+          },
+          {
+            "id": "seal_type",
+            "label": "用印类型",
+            "type": "select",
+            "defaultValue": "普通证明",
+            "options": [
+              "普通证明",
+              "合同用印"
+            ],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入用印类型"
+          },
+          {
+            "id": "document_name",
+            "label": "文件名称",
+            "type": "text",
+            "defaultValue": "在职证明（演示）",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入文件名称"
+          },
+          {
+            "id": "copies",
+            "label": "用印份数",
+            "type": "number",
+            "defaultValue": "1",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入用印份数"
+          },
+          {
+            "id": "notes",
+            "label": "补充说明",
+            "type": "textarea",
+            "defaultValue": "仅供本地演示，无真实业务。",
+            "options": [],
+            "required": false,
+            "width": "full",
+            "placeholder": "请输入补充说明"
+          }
+        ],
+        "permissions": {
+          "accessMode": "all",
+          "members": [],
+          "canSubmit": true,
+          "canViewOwnRecords": true,
+          "canViewAllRecords": false,
+          "canExportRecords": false
+        }
+      },
+      "workflow": {
+        "id": "demo-branch-seal",
+        "name": "【示例】行政用印申请",
+        "category": "行政流程",
+        "applicantFieldPermissions": [
+          {
+            "fieldId": "subject",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "seal_type",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "document_name",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "copies",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "notes",
+            "permission": "editable"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "发起申请",
+            "formId": "demo-branch-seal"
+          },
+          {
+            "id": "seal-check",
+            "type": "condition",
+            "name": "用印类型判断",
+            "branches": [
+              {
+                "id": "seal-check-matched",
+                "name": "合同用印",
+                "fieldId": "seal_type",
+                "operator": "eq",
+                "value": "合同用印",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "contract-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "seal_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "document_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "copies",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "contract-review",
+                    "type": "approval",
+                    "name": "管理员复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "seal_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "document_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "copies",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "seal-check-default",
+                "name": "普通证明",
+                "isDefault": true,
+                "nodes": [
+                  {
+                    "id": "certificate-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "seal_type",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "document_name",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "copies",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "seal-execute",
+            "type": "executor",
+            "name": "用印办理",
+            "assigneeMode": "specified",
+            "assignees": [
+              "employee-a"
+            ],
+            "fieldPermissions": [
+              {
+                "fieldId": "subject",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "seal_type",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "document_name",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "copies",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "notes",
+                "permission": "readonly"
+              }
+            ]
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "name": "普通证明",
+          "values": {
+            "subject": "行政用印申请演示",
+            "seal_type": "普通证明",
+            "document_name": "在职证明（演示）",
+            "copies": "1",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "用印办理"
+          ]
+        },
+        {
+          "name": "合同用印",
+          "values": {
+            "subject": "行政用印申请演示",
+            "seal_type": "合同用印",
+            "document_name": "在职证明（演示）",
+            "copies": "1",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员复核",
+            "用印办理"
+          ]
+        }
+      ]
+    },
+    {
+      "form": {
+        "id": "demo-branch-sales",
+        "name": "【示例】销售合同审批",
+        "description": "第一段按金额分流：50000元及以上走主管审批及管理员金额复核，10000元至不足50000元走主管审批，不足10000元走商务核验。第二段判断非标准条款：是则增加管理员风险复核；否则直接汇合。最后合同归档，演示多出口及串联条件。\n演示账号：主管 approver；复核 admin；执行 employee-a / employee-b。",
+        "fields": [
+          {
+            "id": "subject",
+            "label": "申请事由",
+            "type": "text",
+            "defaultValue": "销售合同审批演示",
+            "options": [],
+            "required": true,
+            "width": "full",
+            "placeholder": "请输入申请事由"
+          },
+          {
+            "id": "customer",
+            "label": "客户名称",
+            "type": "text",
+            "defaultValue": "演示客户",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入客户名称"
+          },
+          {
+            "id": "amount",
+            "label": "合同金额（元）",
+            "type": "number",
+            "defaultValue": "20000",
+            "options": [],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入合同金额（元）"
+          },
+          {
+            "id": "nonstandard",
+            "label": "是否含非标准条款",
+            "type": "select",
+            "defaultValue": "否",
+            "options": [
+              "否",
+              "是"
+            ],
+            "required": true,
+            "width": "half",
+            "placeholder": "请输入是否含非标准条款"
+          },
+          {
+            "id": "notes",
+            "label": "补充说明",
+            "type": "textarea",
+            "defaultValue": "仅供本地演示，无真实业务。",
+            "options": [],
+            "required": false,
+            "width": "full",
+            "placeholder": "请输入补充说明"
+          }
+        ],
+        "permissions": {
+          "accessMode": "all",
+          "members": [],
+          "canSubmit": true,
+          "canViewOwnRecords": true,
+          "canViewAllRecords": false,
+          "canExportRecords": false
+        }
+      },
+      "workflow": {
+        "id": "demo-branch-sales",
+        "name": "【示例】销售合同审批",
+        "category": "销售流程",
+        "applicantFieldPermissions": [
+          {
+            "fieldId": "subject",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "customer",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "amount",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "nonstandard",
+            "permission": "editable"
+          },
+          {
+            "fieldId": "notes",
+            "permission": "editable"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "发起申请",
+            "formId": "demo-branch-sales"
+          },
+          {
+            "id": "contract-amount-check",
+            "type": "condition",
+            "name": "合同金额判断",
+            "branches": [
+              {
+                "id": "amount-high",
+                "name": "大额（50000元及以上）",
+                "fieldId": "amount",
+                "operator": "gte",
+                "value": "50000",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "large-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "customer",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "nonstandard",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "amount-review",
+                    "type": "approval",
+                    "name": "管理员金额复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "customer",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "nonstandard",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "amount-medium",
+                "name": "常规（10000至不足50000元）",
+                "fieldId": "amount",
+                "operator": "gte",
+                "value": "10000",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "normal-manager",
+                    "type": "approval",
+                    "name": "主管审批",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "approver"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "customer",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "nonstandard",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "amount-small",
+                "name": "小额（不足10000元）",
+                "isDefault": true,
+                "nodes": [
+                  {
+                    "id": "business-check",
+                    "type": "executor",
+                    "name": "商务核验",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "employee-b"
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "customer",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "nonstandard",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "contract-risk-check",
+            "type": "condition",
+            "name": "非标准条款判断",
+            "branches": [
+              {
+                "id": "contract-risk-check-matched",
+                "name": "含非标准条款",
+                "fieldId": "nonstandard",
+                "operator": "eq",
+                "value": "是",
+                "isDefault": false,
+                "nodes": [
+                  {
+                    "id": "risk-review",
+                    "type": "approval",
+                    "name": "管理员风险复核",
+                    "assigneeMode": "specified",
+                    "assignees": [
+                      "admin"
+                    ],
+                    "approvalMode": "sequential",
+                    "approvalButtons": [
+                      {
+                        "key": "agree",
+                        "name": "同意",
+                        "enabled": true,
+                        "opinionMode": "optional",
+                        "batchEnabled": false
+                      },
+                      {
+                        "key": "reject",
+                        "name": "拒绝",
+                        "enabled": true,
+                        "opinionMode": "required",
+                        "batchEnabled": false
+                      }
+                    ],
+                    "fieldPermissions": [
+                      {
+                        "fieldId": "subject",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "customer",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "amount",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "nonstandard",
+                        "permission": "readonly"
+                      },
+                      {
+                        "fieldId": "notes",
+                        "permission": "readonly"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "contract-risk-check-default",
+                "name": "标准条款",
+                "isDefault": true,
+                "nodes": []
+              }
+            ]
+          },
+          {
+            "id": "contract-archive",
+            "type": "executor",
+            "name": "合同归档",
+            "assigneeMode": "specified",
+            "assignees": [
+              "employee-a"
+            ],
+            "fieldPermissions": [
+              {
+                "fieldId": "subject",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "customer",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "amount",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "nonstandard",
+                "permission": "readonly"
+              },
+              {
+                "fieldId": "notes",
+                "permission": "readonly"
+              }
+            ]
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束"
+          }
+        ]
+      },
+      "cases": [
+        {
+          "name": "小额标准合同",
+          "values": {
+            "subject": "销售合同审批演示",
+            "customer": "演示客户",
+            "amount": 9999,
+            "nonstandard": "否",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "商务核验",
+            "合同归档"
+          ]
+        },
+        {
+          "name": "边界10000标准条款",
+          "values": {
+            "subject": "销售合同审批演示",
+            "customer": "演示客户",
+            "amount": 10000,
+            "nonstandard": "否",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "合同归档"
+          ]
+        },
+        {
+          "name": "常规非标准合同",
+          "values": {
+            "subject": "销售合同审批演示",
+            "customer": "演示客户",
+            "amount": 49999,
+            "nonstandard": "是",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员风险复核",
+            "合同归档"
+          ]
+        },
+        {
+          "name": "边界50000标准条款",
+          "values": {
+            "subject": "销售合同审批演示",
+            "customer": "演示客户",
+            "amount": 50000,
+            "nonstandard": "否",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员金额复核",
+            "合同归档"
+          ]
+        },
+        {
+          "name": "大额非标准条款",
+          "values": {
+            "subject": "销售合同审批演示",
+            "customer": "演示客户",
+            "amount": 60000,
+            "nonstandard": "是",
+            "notes": "仅供本地演示，无真实业务。"
+          },
+          "expectedSteps": [
+            "主管审批",
+            "管理员金额复核",
+            "管理员风险复核",
+            "合同归档"
+          ]
+        }
+      ]
+    }
+  ]
+}

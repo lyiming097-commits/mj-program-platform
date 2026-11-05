@@ -1,0 +1,2 @@
+export const MAX_ATTACHMENT_MB = 200;
+export const MAX_ATTACHMENT_SIZE = MAX_ATTACHMENT_MB * 1024 * 1024;

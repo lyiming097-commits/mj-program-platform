@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "id": "cable-mall",
+  "name": "线缆商城",
+  "description": "线材商城系统",
+  "icon": "Store",
+  "status": "active",
+  "order": 20,
+  "portal": {"visible": true, "path": "/cable-mall/"},
+  "auth": {
+    "internalService": {
+      "name": "cable-mall-backend",
+      "service": "cable-mall-backend"
+    }
+  },
+  "gatewayNetworks": ["cable_mall_edge_net"],
+  "routes": [
+    {"path": "/api/cable-mall/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/external-cable-mall/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/external-accounts/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/source/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/products/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/projects/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/packages/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/package-items/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/cart/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/product-cart/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/orders/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/shipping-addresses/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/signing-infos/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/custom-requests/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/api/health/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/cable-mall-media/", "target": "cable-mall-backend", "port": 8000},
+    {"path": "/external-cable-mall.html", "exact": true, "target": "cable-mall-frontend"},
+    {"path": "/cable-mall", "exact": true, "target": "cable-mall-frontend"},
+    {"path": "/cable-mall/", "target": "cable-mall-frontend"}
+  ],
+  "secrets": [
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [{"service": "cable-mall-backend", "env": "DJANGO_SECRET_KEY"}]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {"service": "cable-mall-backend", "env": "DB_PASSWORD"},
+        {"service": "cable-mall-postgres", "env": "POSTGRES_PASSWORD"}
+      ]
+    }
+  ],
+  "compose": {
+    "services": {
+      "cable-mall-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/cable-mall-backend:${APP_VERSION:-local}",
+        "container_name": "mj_cable_mall_backend",
+        "depends_on": {
+          "cable-mall-postgres": {"condition": "service_healthy"},
+          "redis": {"condition": "service_started"}
+        },
+        "volumes": [
+          "cable_mall_media_images:/app/images",
+          "cable_mall_media_files:/app/files",
+          "cable_mall_thumb_cache:/app/.thumb_cache"
+        ],
+        "networks": ["cable_mall_edge_net", "mj_services", "cable_mall_db_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/cable-mall/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "APT_MIRROR": "${APT_MIRROR:-mirrors.aliyun.com}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DB_HOST": "cable-mall-postgres",
+          "DB_NAME": "cable_mall_db",
+          "DB_USER": "cable_mall_user",
+          "CABLE_MALL_MEDIA_URL": "/cable-mall-media/",
+          "PRODUCT_ARCHIVE_CATALOG_URL": "${PRODUCT_ARCHIVE_CATALOG_URL:-http://product-archive-backend:8000/api/internal/product-catalog/}",
+          "PRODUCT_ARCHIVE_CATALOG_SYNC_INTERVAL_SECONDS": "${PRODUCT_ARCHIVE_CATALOG_SYNC_INTERVAL_SECONDS:-300}",
+          "DJANGO_DISABLE_LOCAL_APP_MIGRATIONS": "0",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "1",
+          "COLLECT_STATIC": "0"
+        }
+      },
+      "cable-mall-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/cable-mall-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_cable_mall_frontend",
+        "networks": ["cable_mall_edge_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/cable-mall/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "ALPINE_MIRROR": "${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}"
+          }
+        },
+        "environment": {"WEB_SERVICE_NAME": "cable-mall-frontend"}
+      },
+      "cable-mall-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_cable_mall_postgres",
+        "environment": {"POSTGRES_USER": "cable_mall_user", "POSTGRES_DB": "cable_mall_db"},
+        "volumes": ["cable_mall_postgres_data:/var/lib/postgresql/data"],
+        "networks": ["cable_mall_db_net"]
+      }
+    },
+    "networks": {
+      "cable_mall_edge_net": {"name": "mj_program_cable_mall_edge"},
+      "cable_mall_db_net": {"name": "mj_program_cable_mall_db", "internal": true}
+    },
+    "volumes": {
+      "cable_mall_postgres_data": {},
+      "cable_mall_media_images": {},
+      "cable_mall_media_files": {},
+      "cable_mall_thumb_cache": {}
+    }
+  }
+}

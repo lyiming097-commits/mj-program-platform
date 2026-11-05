@@ -1,0 +1,38 @@
+.approval-status-page{height:calc(100vh - 56px);min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px 24px 24px;overflow:auto;background:#f3f7fc;color:#334155}
+.approval-status-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none}
+.approval-status-heading h1{margin:8px 0 5px;font-size:21px;color:#1e293b}.approval-status-heading p{margin:0;color:#94a3b8;font-size:12px}
+.approval-status-back{display:flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:#64748b;font-size:12px;cursor:pointer}
+.approval-status-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;flex:none;padding:0 12px;border:1px solid #dce5f0;border-radius:6px;background:#fff;color:#47617e;font-size:13px;cursor:pointer}
+.status-button:hover{border-color:#94bdf5;background:#f7fbff}.status-button.primary{background:#2563eb;border-color:#2563eb;color:#fff}.status-button:disabled{opacity:.5;cursor:default}
+.approval-status-error{margin:0;padding:10px 12px;border:1px solid #f1d7d7;border-radius:6px;background:#fff5f4;color:#bc5454;font-size:13px;line-height:1.6}
+.approval-status-error button{border:0;background:transparent;color:#2563eb}
+.approval-scope-tabs,.approval-stage-tabs{display:flex;gap:8px;flex:none;overflow:auto;padding:2px 0;scrollbar-width:thin}
+.approval-scope-tabs>button,.approval-stage-tabs>button{display:flex;align-items:center;gap:7px;flex:none;min-height:33px;padding:0 12px;border:1px solid transparent;border-radius:5px;background:#eaf0f7;color:#496584;font-size:13px;white-space:nowrap}
+.approval-scope-tabs>button.active{background:#15243c;color:#fff}.approval-scope-tabs span,.approval-stage-tabs span{padding:1px 5px;border-radius:3px;background:#fff9;color:#6e8bad;font-size:11px;line-height:1.5}
+.approval-stage-tabs{margin-top:-4px}.approval-stage-tabs>button{min-height:30px;border-color:#dfe7f2;background:#fff;color:#6481a0;font-size:12px}
+.approval-stage-tabs>button.active{border-color:#97b8ed;background:#edf4ff;color:#2563eb}
+.approval-status-table-panel{display:flex;flex:1;flex-direction:column;min-height:480px;min-width:0;border:1px solid #dfe7f0;border-radius:7px;background:#fff;box-shadow:0 1px 4px #273e5a05;overflow:hidden}
+.approval-status-table-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;padding:8px 16px;border-bottom:1px solid #dfe7f2}
+.approval-status-table-tools>span{display:flex;align-items:center;gap:7px;color:#7d94ae;font-size:12px}
+.status-clear{border:0;background:transparent;color:#7d94ae;font-size:12px;cursor:pointer}
+.approval-status-table-scroll{flex:1;min-height:280px;overflow:auto}
+.approval-status-table{width:100%;min-width:1140px;border-collapse:collapse;table-layout:fixed;font-size:12px;color:#536c87}
+.approval-status-table th{height:35px;padding:7px 10px;border:1px solid #e4ebf4;border-top:0;background:#f5f8fc;color:#385775;font-weight:600;text-align:left;white-space:nowrap}
+.approval-status-table th:first-child{width:54px;text-align:center}.approval-status-table th:nth-child(2){width:220px}.approval-status-table th:nth-child(3){width:110px}.approval-status-table th:nth-child(4){width:100px}.approval-status-table th:nth-child(5){width:140px}.approval-status-table th:nth-child(6){width:100px}.approval-status-table th:nth-child(7){width:130px}.approval-status-table th:nth-child(8){width:170px}.approval-status-table th:last-child{width:110px}
+.approval-status-table td{padding:12px 10px;border-bottom:1px solid #edf2f8;vertical-align:middle;overflow-wrap:anywhere}
+.approval-status-table td:first-child{text-align:center;color:#8da0b6}.approval-status-table tbody tr:hover{background:#fbfdff}
+.approval-status-table td>small{display:block;margin-top:5px;color:#95a4b7;font-size:11px;line-height:1.5}
+.status-record-title{padding:0;border:0;background:transparent;color:#406caa;text-align:left;font-size:13px;line-height:1.5;cursor:pointer}
+.approval-status-filters{background:#f9fbfe}.approval-status-table .approval-status-filters td{padding:7px 9px;border-right:1px solid #e6edf6}
+.approval-status-filters input,.approval-status-filters select{width:100%;min-width:0;height:30px;padding:0 7px;border:1px solid #d8e4f3;border-radius:6px;outline:0;background:#fff;color:#6783a3;font:inherit}
+.approval-status-filters input:focus,.approval-status-filters select:focus{border-color:#82aceb;box-shadow:0 0 0 2px #edf4ff}
+.status-search{position:relative}.status-search svg{position:absolute;left:8px;top:8px;color:#94abc6}.status-search input{padding-left:27px}
+.status-stage-badge{display:inline-flex;padding:4px 8px;border-radius:4px;background:#f0f3f7;color:#8293a7;font-size:11px;white-space:nowrap}
+.status-stage-badge.approving{background:#eaf2ff;color:#3979d1}.status-stage-badge.executing{background:#edf2fd;color:#657bba}.status-stage-badge.completed{background:#ebf7ef;color:#52966a}.status-stage-badge.returned,.status-stage-badge.rejected{background:#fff0ee;color:#c37b70}.status-stage-badge.pending_assignment{background:#fff6e5;color:#b58d45}
+.status-row-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.status-row-actions>button{padding:0;border:0;background:transparent;color:#3a79d0;font-size:12px;white-space:nowrap}
+.approval-status-table td.approval-status-empty{height:300px;padding:36px;text-align:center;color:#93a4ba;background:#fff}
+.approval-status-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:10px 16px;border-top:1px solid #edf2f8;color:#8ba0b9;font-size:12px}
+.approval-status-pagination>div{display:flex;align-items:center;gap:12px}.approval-status-pagination button{display:flex;align-items:center;gap:4px;padding:5px 9px;border:1px solid #e0e8f4;border-radius:5px;background:#fff;color:#6a88ac;font-size:12px}.approval-status-pagination button:disabled{color:#c1ccdb;background:#fafbfd;cursor:default}
+@media(max-width:800px){.approval-status-page{height:calc(100vh - 100px);padding:16px 12px;gap:12px}.approval-status-heading{align-items:flex-start;flex-direction:column}.approval-status-actions{align-self:flex-end}.approval-status-table-panel{min-height:460px}.approval-status-heading h1{font-size:19px}}
+@media(max-width:420px){.approval-status-pagination{align-items:flex-start;flex-direction:column;gap:9px}.approval-status-pagination>div{align-self:flex-end;gap:9px}}

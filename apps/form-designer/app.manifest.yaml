@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "id": "form-designer",
+  "name": "表单设计",
+  "description": "统一身份与权限下的表单、流程设计及审批运行",
+  "icon": "PanelsTopLeft",
+  "status": "active",
+  "order": 140,
+  "portal": {
+    "visible": true,
+    "path": "/form-designer/"
+  },
+  "auth": {
+    "internalService": {
+      "name": "form-designer-backend",
+      "service": "form-designer-backend"
+    }
+  },
+  "gatewayNetworks": [
+    "form_designer_edge_net"
+  ],
+  "routes": [
+    {
+      "path": "/api/form-designer/",
+      "target": "form-designer-backend",
+      "port": 8000
+    },
+    {
+      "path": "/form-designer",
+      "exact": true,
+      "target": "form-designer-frontend"
+    },
+    {
+      "path": "/form-designer/",
+      "target": "form-designer-frontend"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [
+        {
+          "service": "form-designer-backend",
+          "env": "DJANGO_SECRET_KEY"
+        }
+      ]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {
+          "service": "form-designer-backend",
+          "env": "DB_PASSWORD"
+        },
+        {
+          "service": "form-designer-postgres",
+          "env": "POSTGRES_PASSWORD"
+        }
+      ]
+    }
+  ],
+  "compose": {
+    "services": {
+      "form-designer-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/form-designer-backend:${APP_VERSION:-local}",
+        "container_name": "mj_form_designer_backend",
+        "depends_on": {
+          "form-designer-postgres": {
+            "condition": "service_healthy"
+          }
+        },
+        "networks": [
+          "form_designer_edge_net",
+          "mj_services",
+          "form_designer_db_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/form-designer/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DB_HOST": "form-designer-postgres",
+          "DB_NAME": "form_designer_db",
+          "DB_USER": "form_designer_user",
+          "DJANGO_ALLOWED_HOSTS": "oa.hzmaijie.com,form-designer-backend,localhost,127.0.0.1",
+          "DJANGO_CSRF_TRUSTED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0",
+          "DB_ENGINE": "postgresql",
+          "SERVICE_NAME": "form-designer-backend",
+          "AUTH_INTROSPECTION_URL": "http://auth-backend:8000/api/internal/auth/introspect",
+          "AUTH_ORG_INTERNAL_URL": "http://auth-backend:8000/api/internal/org"
+        },
+        "healthcheck": {
+          "test": "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready', timeout=3).read()\""
+        }
+      },
+      "form-designer-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/form-designer-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_form_designer_frontend",
+        "networks": [
+          "form_designer_edge_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/form-designer/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}"
+          }
+        },
+        "environment": {
+          "WEB_SERVICE_NAME": "form-designer-frontend"
+        }
+      },
+      "form-designer-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_form_designer_postgres",
+        "environment": {
+          "POSTGRES_USER": "form_designer_user",
+          "POSTGRES_DB": "form_designer_db"
+        },
+        "volumes": [
+          "form_designer_postgres_data:/var/lib/postgresql/data"
+        ],
+        "networks": [
+          "form_designer_db_net"
+        ]
+      }
+    },
+    "networks": {
+      "form_designer_edge_net": {
+        "name": "mj_program_form_designer_edge"
+      },
+      "form_designer_db_net": {
+        "name": "mj_program_form_designer_db",
+        "internal": true
+      }
+    },
+    "volumes": {
+      "form_designer_postgres_data": {}
+    }
+  }
+}

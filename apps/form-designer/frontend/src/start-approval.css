@@ -1,0 +1,60 @@
+.start-form-dialog{color:#27364b}
+.employee-dialog.start-form-dialog>header.start-approval-header{flex:none;min-height:104px;display:flex;align-items:center;gap:14px;padding:24px 30px;border-bottom:1px solid #e7ebf1;background:#fff}
+.start-approval-icon{width:48px;height:48px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ff;color:#397fee}
+.start-approval-heading{min-width:0;flex:1}
+.start-approval-heading h2{margin:0;color:#25344a;font-size:21px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
+.start-approval-heading p{margin:6px 0 0;color:#8994a5;font-size:13px}
+.start-approval-close{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;color:#8994a5;cursor:pointer}
+.start-approval-close:hover{background:#f2f5f9;color:#374a65}
+.employee-dialog.start-form-dialog>.employee-dialog-body.start-approval-body{min-height:0;padding:24px 30px;display:flex;flex-direction:column;gap:20px;background:#f6f8fb}
+.start-approval-card{min-width:0;flex:none;margin:0;padding:28px;border:1px solid #e3e8ef;border-radius:12px;background:#fff;box-shadow:0 2px 5px #263e5c03}
+.start-form-description{margin:0 0 24px;font-size:13px;line-height:1.6;color:#8390a1;white-space:pre-wrap}
+.start-approval-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:24px 18px}
+.start-approval-field{display:flex;flex-direction:column;gap:10px;min-width:0}
+.start-approval-field.full{grid-column:1/-1}
+.start-approval-field>label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#35435a;font-size:14px;font-weight:550;line-height:1.6}
+.start-approval-field>label i{color:#e35757;font-style:normal}
+.start-approval-field>label small{color:#8b96a6;font-size:12px;font-weight:400}
+.start-approval-field input:not([type=checkbox]):not([type=radio]),.start-approval-field textarea,.start-approval-field select{box-sizing:border-box;min-width:0;width:100%;min-height:44px;padding:11px 13px;border:1px solid #dce2ea;border-radius:7px;outline:0;background:#fff;color:#34445a;font-family:inherit;font-size:14px;line-height:1.5;transition:border-color .15s,box-shadow .15s}
+.start-approval-field textarea{resize:vertical;min-height:96px}
+.start-approval-field input::placeholder,.start-approval-field textarea::placeholder{color:#a6afbc}
+.start-approval-field input:focus,.start-approval-field textarea:focus,.start-approval-field select:focus{border-color:#72a5f2;box-shadow:0 0 0 3px #edf4ff}
+.start-approval-field input[readonly],.start-approval-field textarea[readonly],.start-approval-field select:disabled{background:#f5f7fa;color:#7c899a}
+.start-approval-field.invalid input,.start-approval-field.invalid textarea,.start-approval-field.invalid select{border-color:#e59a98}
+.start-date-range{display:flex;align-items:center;gap:15px;min-width:0}
+.start-date-range>input{flex:1;width:0!important}
+.start-date-range>span{color:#8f99a8;font-size:13px}
+.start-choice-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:4px 0;border:0;min-width:0}
+.start-choice-list label{display:flex;align-items:center;gap:8px;color:#4f5f74;font-size:14px}
+.start-choice-list input{margin:0;accent-color:#397fee;width:16px;height:16px}
+.start-choice-list:disabled{opacity:.65}
+.start-field-description{margin:0;color:#7f8b9b;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.start-upload-placeholder{padding:20px;border:1px dashed #dce2ea;border-radius:7px;background:#fafbfd;color:#96a1b1;font-size:13px;text-align:center}
+.employee-dialog.start-form-dialog>footer.start-approval-footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 30px;border-top:1px solid #e5eaf1;background:#fff;box-shadow:0 -4px 14px #263e5c03}
+.start-footer-message{flex:1;min-width:0}
+.start-footer-message p{margin:0;color:#98a3b2;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.start-footer-message p.start-submit-error{color:#cc5555}
+.start-footer-actions{display:flex;gap:12px;flex:none}
+.start-footer-actions button{min-height:42px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 20px;border:1px solid #dce2ea;border-radius:7px;background:#fff;color:#57667c;font-size:14px;cursor:pointer;white-space:nowrap}
+.start-footer-actions button.start-submit-button{border-color:#397fee;background:#397fee;color:#fff}
+.start-footer-actions button:hover{filter:brightness(.98)}
+.start-footer-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:700px){.start-approval-form-grid{grid-template-columns:minmax(0,1fr);gap:20px}.start-approval-field.half{grid-column:1/-1}}
+@media(max-width:600px){
+.employee-dialog.start-form-dialog>header.start-approval-header{min-height:90px;padding:20px 18px;gap:11px}
+.start-approval-icon{width:40px;height:40px;border-radius:10px}
+.start-approval-heading h2{font-size:18px}
+.start-approval-heading p{font-size:12px}
+.employee-dialog.start-form-dialog>.employee-dialog-body.start-approval-body{padding:16px;gap:16px}
+.start-approval-card{padding:20px 17px;border-radius:10px}
+.employee-dialog.start-form-dialog>footer.start-approval-footer{flex-direction:column;align-items:stretch;gap:10px;padding:13px 16px max(13px,env(safe-area-inset-bottom))}
+.start-footer-actions button{flex:1}
+.start-footer-message p{font-size:11px}
+.start-date-range{gap:8px}
+.start-approval-field input:not([type=checkbox]):not([type=radio]){padding:10px 8px}
+}
+
+.start-inline-shell{min-width:0;width:100%;padding-bottom:14px}
+.employee-dialog.start-form-dialog.start-form-inline{width:100%;max-width:100%;height:auto;max-height:none;border-radius:0;box-shadow:none;overflow:visible}
+.employee-dialog.start-form-inline>.employee-dialog-body.start-approval-body{overflow:visible;flex:none}
+.employee-dialog.start-form-inline>.start-approval-footer{position:static}

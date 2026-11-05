@@ -1,0 +1,8 @@
+{
+  "name": "mj-after-sales-devtools-automation",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "miniprogram-automator": "0.12.1"
+  }
+}

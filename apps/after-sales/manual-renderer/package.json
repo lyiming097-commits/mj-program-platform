@@ -1,0 +1,11 @@
+{
+  "name": "mj-after-sales-manual-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test renderer.test.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.55.0"
+  }
+}

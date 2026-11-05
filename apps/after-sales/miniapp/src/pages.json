@@ -1,0 +1,80 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "服务人员注册",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/tasks/index",
+      "style": {
+        "navigationBarTitleText": "现场任务",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    {
+      "path": "pages/feedback/index",
+      "style": {
+        "navigationBarTitleText": "反馈与支持",
+        "backgroundColor": "#f4f6f8"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "backgroundColor": "#f4f6f8"
+      }
+    },
+    {
+      "path": "pages/pending/index",
+      "style": {
+        "navigationBarTitleText": "服务认证",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/task-detail/index",
+      "style": {
+        "navigationBarTitleText": "任务详情",
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    {
+      "path": "pages/reward-detail/index",
+      "style": {
+        "navigationBarTitleText": "奖励详情",
+        "backgroundColor": "#f3f5f7"
+      }
+    },
+    {
+      "path": "pages/privacy/index",
+      "style": {
+        "navigationBarTitleText": "协议与隐私",
+        "backgroundColor": "#f4f6f8"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f3f5f7",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#7b8798",
+    "selectedColor": "#155eef",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/tasks/index", "text": "任务", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
+      { "pagePath": "pages/feedback/index", "text": "反馈", "iconPath": "static/tabbar/feedback.png", "selectedIconPath": "static/tabbar/feedback-active.png" },
+      { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "static/tabbar/profile.png", "selectedIconPath": "static/tabbar/profile-active.png" }
+    ]
+  }
+}

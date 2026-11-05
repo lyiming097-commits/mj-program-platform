@@ -1,0 +1,17 @@
+<script setup>
+import { backdropDismiss as vBackdropDismiss } from "@platform-ui/backdrop-dismiss.js";
+import { CalendarClock } from "lucide-vue-next";
+import { computed, shallowRef, watch } from "vue";
+import UnsavedChangesDialog from "@/shared/UnsavedChangesDialog.vue";
+const props = defineProps({ open: Boolean, busy: Boolean }); const emit = defineEmits(["close", "confirm"]); const expires = shallowRef(""); const initialExpires = shallowRef(""); const discardOpen = shallowRef(false);
+function dateString(value) { const year = value.getFullYear(); const month = String(value.getMonth() + 1).padStart(2, "0"); const day = String(value.getDate()).padStart(2, "0"); return `${year}-${month}-${day}`; }
+const minimum = computed(() => { const value = new Date(); value.setDate(value.getDate() + 1); return dateString(value); });
+const dirty = computed(() => expires.value !== initialExpires.value);
+watch(() => props.open, (open) => { if (open) { const value = new Date(); value.setFullYear(value.getFullYear() + 1); initialExpires.value = dateString(value); expires.value = initialExpires.value; discardOpen.value = false; } }, { immediate: true });
+function requestClose() { if (props.busy) return; if (dirty.value) discardOpen.value = true; else emit("close"); }
+function discardAndClose() { expires.value = initialExpires.value; discardOpen.value = false; emit("close"); }
+</script>
+<template><Teleport to="body"><Transition name="modal"><div v-if="open" class="modal-layer" v-backdrop-dismiss="requestClose"><section class="modal-panel" role="dialog" aria-modal="true" aria-label="延长时间"><div class="modal-body"><span><CalendarClock :size="20" /></span><h2>延长时间</h2><label>新的有效期<input v-model="expires" type="date" :min="minimum" :disabled="busy" /></label></div><footer><button type="button" class="btn" :disabled="busy" @click="requestClose">取消</button><button type="button" class="btn btn-primary" :disabled="busy || !expires || expires < minimum" @click="emit('confirm', expires)">{{ busy ? '处理中...' : '确认延长' }}</button></footer></section></div></Transition></Teleport><UnsavedChangesDialog :open="discardOpen" description="新的有效期尚未提交，退出后将不会保留。" @cancel="discardOpen = false" @confirm="discardAndClose" /></template>
+<style scoped>
+.modal-layer { position: fixed; inset: 0; z-index: 115; display: grid; place-items: center; background: rgba(15,23,42,.36); padding: 24px; }.modal-panel { width: min(440px, calc(100vw - 48px)); overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 24px 64px rgba(15,23,42,.24); }.modal-body { padding: 22px; }.modal-body > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 7px; background: #eff6ff; color: #2563eb; }.modal-body h2 { margin: 14px 0 0; font-size: 15px; }.modal-body label { display: block; margin-top: 15px; color: #64748b; font-size: 10px; font-weight: 700; }.modal-body input { display: block; width: 100%; height: 40px; margin-top: 7px; border: 1px solid #d9e1ea; border-radius: 6px; outline: 0; padding: 0 10px; color: #334155; }.modal-body input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }.modal-panel footer { display: flex; justify-content: flex-end; gap: 7px; border-top: 1px solid #dfe6ee; background: #f8fafc; padding: 10px 14px; }.modal-enter-active,.modal-leave-active{transition:opacity .16s ease}.modal-enter-from,.modal-leave-to{opacity:0}
+</style>

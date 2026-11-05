@@ -1,0 +1,76 @@
+.auth-org-surface {
+  --org-row-height: 64px;
+  --org-cell-padding-block: 12px;
+  --org-avatar-size: 40px;
+  --org-control-height: 32px;
+  --org-border: #e2e8f0;
+  --org-primary: #2563eb;
+  --org-muted: #64748b;
+  --org-radius: 8px;
+}
+.auth-org-surface .org-button {
+  display: inline-flex;
+  min-height: var(--org-control-height);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--org-border);
+  border-radius: var(--org-radius);
+  background: white;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.auth-org-surface .org-button:hover:enabled {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.auth-org-surface .org-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.auth-org-surface .org-text-button {
+  color: var(--org-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.auth-org-surface :is(button, input, select, summary):focus-visible {
+  outline: 2px solid var(--org-primary);
+  outline-offset: 2px;
+}
+.auth-org-surface .org-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.auth-org-surface .org-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+.auth-org-surface .org-table :is(th, td) {
+  border-bottom: 1px solid var(--org-border);
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+.auth-org-surface .org-table td {
+  height: var(--org-row-height);
+  padding-block: var(--org-cell-padding-block);
+}
+.auth-org-surface .org-member-avatar {
+  width: var(--org-avatar-size);
+  height: var(--org-avatar-size);
+}
+.auth-org-surface .org-table tbody tr:nth-child(even) {
+  background: #fbfdff;
+}
+.auth-org-surface .org-table tbody tr:hover {
+  background: #eff6ff;
+}

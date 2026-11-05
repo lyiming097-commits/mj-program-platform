@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "id": "approval-center",
+  "name": "审批中心",
+  "description": "统一管理审批模板、流程与业务审批",
+  "icon": "ClipboardCheck",
+  "status": "active",
+  "order": 130,
+  "portal": {
+    "visible": true,
+    "path": "/approval-center/"
+  },
+  "auth": {
+    "internalService": {
+      "name": "approval-center-backend",
+      "service": "approval-center-backend"
+    }
+  },
+  "gatewayNetworks": [
+    "approval_center_edge_net"
+  ],
+  "routes": [
+    {
+      "path": "/api/approval-center/",
+      "target": "approval-center-backend",
+      "port": 8000
+    },
+    {
+      "path": "/approval-center",
+      "exact": true,
+      "target": "approval-center-frontend"
+    },
+    {
+      "path": "/approval-center/",
+      "target": "approval-center-frontend"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [
+        {
+          "service": "approval-center-backend",
+          "env": "DJANGO_SECRET_KEY"
+        }
+      ]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {
+          "service": "approval-center-backend",
+          "env": "DB_PASSWORD"
+        },
+        {
+          "service": "approval-center-postgres",
+          "env": "POSTGRES_PASSWORD"
+        }
+      ]
+    }
+  ],
+  "compose": {
+    "services": {
+      "approval-center-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/approval-center-backend:${APP_VERSION:-local}",
+        "container_name": "mj_approval_center_backend",
+        "depends_on": {
+          "approval-center-postgres": {
+            "condition": "service_healthy"
+          },
+          "redis": {
+            "condition": "service_started"
+          }
+        },
+        "networks": [
+          "approval_center_edge_net",
+          "mj_services",
+          "approval_center_db_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/approval-center/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DB_HOST": "approval-center-postgres",
+          "DB_NAME": "approval_center_db",
+          "DB_USER": "approval_center_user",
+          "DJANGO_ALLOWED_HOSTS": "oa.hzmaijie.com,approval-center-backend,localhost,127.0.0.1",
+          "CORS_ALLOWED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "DJANGO_CSRF_TRUSTED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0"
+        },
+        "healthcheck": {
+          "test": "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready', timeout=3).read()\""
+        }
+      },
+      "approval-center-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/approval-center-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_approval_center_frontend",
+        "networks": [
+          "approval_center_edge_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/approval-center/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}"
+          }
+        },
+        "environment": {
+          "WEB_SERVICE_NAME": "approval-center-frontend"
+        }
+      },
+      "approval-center-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_approval_center_postgres",
+        "environment": {
+          "POSTGRES_USER": "approval_center_user",
+          "POSTGRES_DB": "approval_center_db"
+        },
+        "volumes": [
+          "approval_center_postgres_data:/var/lib/postgresql/data"
+        ],
+        "networks": [
+          "approval_center_db_net"
+        ]
+      }
+    },
+    "networks": {
+      "approval_center_edge_net": {
+        "name": "mj_program_approval_center_edge",
+        "ipam": {
+          "driver": "default",
+          "config": [
+            {
+              "subnet": "198.19.32.0/24",
+              "gateway": "198.19.32.1"
+            }
+          ]
+        }
+      },
+      "approval_center_db_net": {
+        "name": "mj_program_approval_center_db",
+        "ipam": {
+          "driver": "default",
+          "config": [
+            {
+              "subnet": "198.19.33.0/24",
+              "gateway": "198.19.33.1"
+            }
+          ]
+        },
+        "internal": true
+      }
+    },
+    "volumes": {
+      "approval_center_postgres_data": {}
+    }
+  }
+}

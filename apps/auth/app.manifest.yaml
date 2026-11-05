@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "id": "auth",
+  "name": "统一身份中心",
+  "description": "登录、代理与组织架构服务",
+  "icon": "ShieldCheck",
+  "status": "active",
+  "order": 0,
+  "portal": {
+    "visible": false,
+    "path": ""
+  },
+  "gatewayNetworks": ["auth_edge_net"],
+  "routes": [
+    {"path": "/api/auth/code", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 30},
+    {"path": "/api/auth/dev/login", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 10},
+    {"path": "/api/auth/wechat-mini/login", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 30},
+    {"path": "/api/auth/wechat-mini/register", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 15},
+    {"path": "/api/auth/wechat-mini/dev-login", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 10},
+    {"path": "/api/dingtalk/jsapi_config", "exact": true, "target": "auth-backend", "port": 8000, "rateLimit": "auth_login_limit", "burst": 30},
+    {"path": "/api/auth/", "target": "auth-backend", "port": 8000},
+    {"path": "/api/dingtalk/", "target": "auth-backend", "port": 8000},
+    {"path": "/api/org/robot-messages/send", "exact": true, "target": "auth-backend", "port": 8000, "clientMaxBodySize": "12m"},
+    {"path": "/api/org/", "target": "auth-backend", "port": 8000, "clientMaxBodySize": "32m"},
+    {"path": "/api/directory/", "target": "auth-backend", "port": 8000},
+    {"path": "/api/health/live", "exact": true, "target": "auth-backend", "port": 8000},
+    {"path": "/api/health/ready", "exact": true, "target": "auth-backend", "port": 8000},
+    {"path": "/auth", "exact": true, "target": "auth-frontend"},
+    {"path": "/auth/", "target": "auth-frontend"}
+  ],
+  "secrets": [
+    {
+      "id": "business-registry-appcode",
+      "file": "business-registry-appcode.secret",
+      "required": false,
+      "mounts": [{"service": "auth-backend", "env": "BUSINESS_REGISTRY_APPCODE_SECRET"}]
+    },
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [{"service": "auth-backend", "env": "DJANGO_SECRET_KEY"}]
+    },
+    {
+      "id": "sync-worker-django-secret",
+      "file": "sync-worker-django.secret",
+      "generateBytes": 48,
+      "mounts": [
+        {"service": "auth-sync-worker", "env": "DJANGO_SECRET_KEY"},
+        {"service": "auth-robot-worker", "env": "DJANGO_SECRET_KEY"},
+        {"service": "auth-sync-scheduler", "env": "DJANGO_SECRET_KEY"}
+      ]
+    },
+    {
+      "id": "token-secret",
+      "file": "token.secret",
+      "generateBytes": 48,
+      "mounts": [{"service": "auth-backend", "env": "AUTH_TOKEN_SECRET"}]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {"service": "auth-backend", "env": "DB_PASSWORD"},
+        {"service": "auth-sync-worker", "env": "DB_PASSWORD"},
+        {"service": "auth-robot-worker", "env": "DB_PASSWORD"},
+        {"service": "auth-postgres", "env": "POSTGRES_PASSWORD"}
+      ]
+    },
+    {
+      "id": "dingtalk-client-secret",
+      "file": "dingtalk-client.secret",
+      "required": false,
+      "mounts": [
+        {"service": "auth-backend", "env": "DINGTALK_CLIENT_SECRET"},
+        {"service": "auth-sync-worker", "env": "DINGTALK_CLIENT_SECRET"},
+        {"service": "auth-robot-worker", "env": "DINGTALK_CLIENT_SECRET"}
+      ]
+    },
+    {
+      "id": "dev-login-remote-secret",
+      "file": "dev-login-remote.secret",
+      "required": false,
+      "mounts": [{"service": "auth-backend", "env": "AUTH_DEV_LOGIN_REMOTE_SECRET"}]
+    },
+    {
+      "id": "wechat-mini-app-secret",
+      "file": "wechat-mini-app.secret",
+      "required": false,
+      "mounts": [{"service": "auth-backend", "env": "WECHAT_MINI_APP_SECRET"}]
+    }
+  ],
+  "compose": {
+    "services": {
+      "auth-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/auth-backend:${APP_VERSION:-local}",
+        "container_name": "mj_auth_backend",
+        "depends_on": {
+          "auth-postgres": {"condition": "service_healthy"},
+          "redis": {"condition": "service_started"}
+        },
+        "volumes": [
+          "auth_media_images:/app/images",
+          "auth_media_files:/app/files",
+          "auth_thumb_cache:/app/.thumb_cache"
+        ],
+        "networks": ["auth_edge_net", "mj_services", "auth_db_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/auth/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "APT_MIRROR": "${APT_MIRROR:-mirrors.aliyun.com}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "SERVICE_NAME": "auth-backend",
+          "AUTH_RUNTIME_ROLE": "web",
+          "AUTH_INTERNAL_ALLOWED_HOSTS": "${AUTH_INTERNAL_ALLOWED_HOSTS:-auth-backend}",
+          "AUTH_DEV_LOGIN_ENABLED": "${AUTH_DEV_LOGIN_ENABLED:-0}",
+          "AUTH_DEV_LOGIN_ALLOW_REMOTE": "${AUTH_DEV_LOGIN_ALLOW_REMOTE:-0}",
+          "AUTH_DEV_LOGIN_TRUST_PRIVATE_LOCALHOST": "${AUTH_DEV_LOGIN_TRUST_PRIVATE_LOCALHOST:-0}",
+          "AUTH_DEV_LOGIN_NAME": "${AUTH_DEV_LOGIN_NAME:-}",
+          "WECHAT_MINI_APP_ID": "${WECHAT_MINI_APP_ID:-}",
+          "WECHAT_MINI_DEV_LOGIN_ENABLED": "${WECHAT_MINI_DEV_LOGIN_ENABLED:-0}",
+          "WECHAT_MINI_DEV_OPENID": "${WECHAT_MINI_DEV_OPENID:-dev-openid}",
+          "WECHAT_MINI_API_TIMEOUT_SECONDS": "${WECHAT_MINI_API_TIMEOUT_SECONDS:-5}",
+          "WECHAT_MINI_REGISTRATION_TTL_SECONDS": "${WECHAT_MINI_REGISTRATION_TTL_SECONDS:-600}",
+          "AUTH_USE_DJANGO_MIGRATIONS": "1",
+          "FULL_ACCESS_USER_IDS": "${FULL_ACCESS_USER_IDS:-}",
+          "DINGTALK_CLIENT_ID": "${DINGTALK_CLIENT_ID:-}",
+          "DINGTALK_ROBOT_CODE": "${DINGTALK_ROBOT_CODE:-}",
+          "DINGTALK_CORP_ID": "${DINGTALK_CORP_ID:-}",
+          "DINGTALK_AGENT_ID": "${DINGTALK_AGENT_ID:-}",
+          "DINGTALK_ROOT_DEPT_ID": "${DINGTALK_ROOT_DEPT_ID:-1}",
+          "DINGTALK_JSAPI_ALLOWED_ORIGINS": "${DINGTALK_JSAPI_ALLOWED_ORIGINS:-}",
+          "DINGTALK_ROBOT_IMAGE_ORIGIN": "${DINGTALK_ROBOT_IMAGE_ORIGIN:-}",
+          "AUTH_ORG_SYNC_INTERVAL_SECONDS": "${AUTH_ORG_SYNC_INTERVAL_SECONDS:-900}",
+          "DINGTALK_ORG_SYNC_MAX_DEPARTMENT_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_DEPARTMENT_DROP_RATIO:-0.35}",
+          "DINGTALK_ORG_SYNC_MAX_EMPLOYEE_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_EMPLOYEE_DROP_RATIO:-0.25}",
+          "DINGTALK_ORG_SYNC_MAX_MEMBERSHIP_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_MEMBERSHIP_DROP_RATIO:-0.35}",
+          "DINGTALK_ORG_SYNC_MAX_USER_DETAIL_ERROR_RATIO": "${DINGTALK_ORG_SYNC_MAX_USER_DETAIL_ERROR_RATIO:-0.05}",
+          "DB_HOST": "auth-postgres",
+          "DB_NAME": "auth_db",
+          "DB_USER": "auth_user",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "1",
+          "COLLECT_STATIC": "0",
+          "PRUNE_AUTH_HISTORY": "1"
+        }
+      },
+      "auth-sync-worker": {
+        "image": "mj_program/auth-backend:${APP_VERSION:-local}",
+        "container_name": "mj_auth_sync_worker",
+        "restart": "unless-stopped",
+        "read_only": true,
+        "cap_drop": ["ALL"],
+        "cap_add": ["DAC_OVERRIDE", "SETGID", "SETUID"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:size=64m,mode=1777"],
+        "depends_on": {
+          "auth-postgres": {"condition": "service_healthy"},
+          "redis": {"condition": "service_started"}
+        },
+        "command": ["celery", "-A", "mj_backend", "worker", "--loglevel=INFO", "--concurrency=1", "--queues=auth_sync", "--hostname=auth-sync@%h"],
+        "networks": ["auth_edge_net", "mj_services", "auth_db_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/auth/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "APT_MIRROR": "${APT_MIRROR:-mirrors.aliyun.com}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "SERVICE_NAME": "auth-sync-worker",
+          "PYTHONPATH": "/app",
+          "RUN_AS_UID": "65534",
+          "RUN_AS_GID": "65534",
+          "AUTH_RUNTIME_ROLE": "sync-worker",
+          "FULL_ACCESS_USER_IDS": "${FULL_ACCESS_USER_IDS:-}",
+          "DJANGO_DEBUG": "0",
+          "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+          "DB_ENGINE": "postgresql",
+          "DB_HOST": "auth-postgres",
+          "DB_PORT": "5432",
+          "DB_NAME": "auth_db",
+          "DB_USER": "auth_user",
+          "AUTH_CELERY_BROKER_URL": "${AUTH_CELERY_BROKER_URL:-redis://redis:6379/1}",
+          "DINGTALK_CLIENT_ID": "${DINGTALK_CLIENT_ID:-}",
+          "DINGTALK_ROBOT_CODE": "${DINGTALK_ROBOT_CODE:-}",
+          "DINGTALK_CORP_ID": "${DINGTALK_CORP_ID:-}",
+          "DINGTALK_AGENT_ID": "${DINGTALK_AGENT_ID:-}",
+          "DINGTALK_ROOT_DEPT_ID": "${DINGTALK_ROOT_DEPT_ID:-1}",
+          "DINGTALK_ORG_SYNC_MAX_DEPARTMENT_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_DEPARTMENT_DROP_RATIO:-0.35}",
+          "DINGTALK_ORG_SYNC_MAX_EMPLOYEE_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_EMPLOYEE_DROP_RATIO:-0.25}",
+          "DINGTALK_ORG_SYNC_MAX_MEMBERSHIP_DROP_RATIO": "${DINGTALK_ORG_SYNC_MAX_MEMBERSHIP_DROP_RATIO:-0.35}",
+          "DINGTALK_ORG_SYNC_MAX_USER_DETAIL_ERROR_RATIO": "${DINGTALK_ORG_SYNC_MAX_USER_DETAIL_ERROR_RATIO:-0.05}",
+          "DJANGO_DISABLE_LOCAL_APP_MIGRATIONS": "1",
+          "AUTH_USE_DJANGO_MIGRATIONS": "1",
+          "TZ": "Asia/Shanghai",
+          "RUN_MIGRATIONS": "0",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0",
+          "PRUNE_AUTH_HISTORY": "0"
+        }
+      },
+      "auth-robot-worker": {
+        "image": "mj_program/auth-backend:${APP_VERSION:-local}",
+        "container_name": "mj_auth_robot_worker",
+        "restart": "unless-stopped",
+        "read_only": true,
+        "cap_drop": ["ALL"],
+        "cap_add": ["DAC_OVERRIDE", "SETGID", "SETUID"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:size=64m,mode=1777"],
+        "depends_on": {
+          "auth-postgres": {"condition": "service_healthy"},
+          "redis": {"condition": "service_started"}
+        },
+        "command": ["celery", "-A", "mj_backend", "worker", "--loglevel=INFO", "--concurrency=2", "--queues=auth_robot_messages", "--hostname=auth-robot@%h"],
+        "networks": ["auth_edge_net", "mj_services", "auth_db_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/auth/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "APT_MIRROR": "${APT_MIRROR:-mirrors.aliyun.com}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "SERVICE_NAME": "auth-robot-worker",
+          "PYTHONPATH": "/app",
+          "RUN_AS_UID": "65534",
+          "RUN_AS_GID": "65534",
+          "AUTH_RUNTIME_ROLE": "robot-worker",
+          "FULL_ACCESS_USER_IDS": "${FULL_ACCESS_USER_IDS:-}",
+          "DJANGO_DEBUG": "0",
+          "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+          "DB_ENGINE": "postgresql",
+          "DB_HOST": "auth-postgres",
+          "DB_PORT": "5432",
+          "DB_NAME": "auth_db",
+          "DB_USER": "auth_user",
+          "AUTH_CELERY_BROKER_URL": "${AUTH_CELERY_BROKER_URL:-redis://redis:6379/1}",
+          "DINGTALK_CLIENT_ID": "${DINGTALK_CLIENT_ID:-}",
+          "DINGTALK_ROBOT_CODE": "${DINGTALK_ROBOT_CODE:-}",
+          "DINGTALK_CORP_ID": "${DINGTALK_CORP_ID:-}",
+          "DJANGO_DISABLE_LOCAL_APP_MIGRATIONS": "1",
+          "AUTH_USE_DJANGO_MIGRATIONS": "1",
+          "TZ": "Asia/Shanghai",
+          "RUN_MIGRATIONS": "0",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0",
+          "PRUNE_AUTH_HISTORY": "0"
+        }
+      },
+      "auth-sync-scheduler": {
+        "image": "mj_program/auth-backend:${APP_VERSION:-local}",
+        "container_name": "mj_auth_sync_scheduler",
+        "restart": "unless-stopped",
+        "read_only": true,
+        "cap_drop": ["ALL"],
+        "cap_add": ["DAC_OVERRIDE", "SETGID", "SETUID"],
+        "security_opt": ["no-new-privileges:true"],
+        "tmpfs": ["/tmp:size=32m,mode=1777"],
+        "depends_on": {"redis": {"condition": "service_started"}},
+        "command": ["celery", "-A", "mj_backend", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule", "--pidfile=/tmp/celerybeat.pid"],
+        "networks": ["mj_services"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/auth/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "APT_MIRROR": "${APT_MIRROR:-mirrors.aliyun.com}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "SERVICE_NAME": "auth-sync-scheduler",
+          "PYTHONPATH": "/app",
+          "RUN_AS_UID": "65534",
+          "RUN_AS_GID": "65534",
+          "AUTH_RUNTIME_ROLE": "beat",
+          "DJANGO_DEBUG": "0",
+          "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+          "DB_ENGINE": "sqlite",
+          "SQLITE_NAME": "/tmp/auth-beat.sqlite3",
+          "AUTH_CELERY_BROKER_URL": "${AUTH_CELERY_BROKER_URL:-redis://redis:6379/1}",
+          "AUTH_ORG_SYNC_INTERVAL_SECONDS": "${AUTH_ORG_SYNC_INTERVAL_SECONDS:-900}",
+          "TZ": "Asia/Shanghai",
+          "WAIT_FOR_DB": "0",
+          "RUN_MIGRATIONS": "0",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0",
+          "PRUNE_AUTH_HISTORY": "0"
+        }
+      },
+      "auth-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/auth-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_auth_frontend",
+        "networks": ["auth_edge_net"],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/auth/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "ALPINE_MIRROR": "${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}",
+            "VITE_DING_CLIENT_ID": "${VITE_DING_CLIENT_ID:-}",
+            "VITE_DING_CORP_ID": "${VITE_DING_CORP_ID:-}",
+            "VITE_DING_REDIRECT_URI": "${VITE_DING_REDIRECT_URI:-}",
+            "VITE_AUTH_DEV_LOGIN": "${VITE_AUTH_DEV_LOGIN:-}"
+          }
+        },
+        "environment": {"WEB_SERVICE_NAME": "auth-frontend"}
+      },
+      "auth-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_auth_postgres",
+        "environment": {"POSTGRES_USER": "auth_user", "POSTGRES_DB": "auth_db"},
+        "volumes": ["auth_postgres_data:/var/lib/postgresql/data"],
+        "networks": ["auth_db_net"]
+      }
+    },
+    "networks": {
+      "auth_edge_net": {"name": "mj_program_auth_edge"},
+      "auth_db_net": {"name": "mj_program_auth_db", "internal": true}
+    },
+    "volumes": {
+      "auth_postgres_data": {},
+      "auth_media_images": {},
+      "auth_media_files": {},
+      "auth_thumb_cache": {}
+    }
+  }
+}

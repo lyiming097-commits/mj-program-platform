@@ -1,0 +1,171 @@
+name: Platform app checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shared-frontend-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_runtime/templates/frontend-package-lock.json
+      - run: node --test packages/platform-ui/tests/*.test.mjs
+
+  registry-checks:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python scripts/appctl.py check --skip-secrets
+      - run: python -m unittest discover -s platform_runtime/tests -v
+      - run: python scripts/appctl.py secrets ensure
+      - run: python scripts/appctl.py prepare
+      - run: docker compose -f compose.yaml -f .runtime/compose.apps.yaml config --quiet
+      - run: docker compose -f compose.yaml -f .runtime/compose.apps.yaml run --rm --no-deps gateway nginx -t
+      - name: Check shell scripts
+        run: |
+          for script in scripts/*.sh docker/backend/entrypoint.sh; do
+            bash -n "$script"
+          done
+      - id: apps
+        run: echo "apps=$(python scripts/appctl.py apps --json)" >> "$GITHUB_OUTPUT"
+
+  scaffold-checks:
+    needs: registry-checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_runtime/templates/frontend-package-lock.json
+      - run: python scripts/new_app.py scaffold-ci --name "Scaffold CI" --no-deploy --yes
+      - run: python scripts/appctl.py check --skip-secrets
+      - run: pip install -r apps/scaffold-ci/backend/requirements.txt
+      - run: python -m unittest discover -s packages/platform-backend/tests -v
+      - name: Check generated backend
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+          python manage.py test
+        working-directory: apps/scaffold-ci/backend
+        env:
+          DB_ENGINE: sqlite
+          DJANGO_DEBUG: "0"
+          DJANGO_SECRET_KEY: ci-only-django-secret-32-characters-minimum
+          AUTH_SERVICE_INTROSPECTION_SECRET: ci-only-service-secret-32-characters-minimum
+      - run: npm ci
+        working-directory: apps/scaffold-ci/frontend
+      - run: npm run build
+        working-directory: apps/scaffold-ci/frontend
+      - name: Build and run the generated Docker App
+        run: |
+          python scripts/appctl.py secrets ensure
+          python scripts/appctl.py prepare
+          docker compose -f compose.yaml -f .runtime/compose.apps.yaml build scaffold-ci-backend scaffold-ci-frontend
+          docker compose -f compose.yaml -f .runtime/compose.apps.yaml run --rm --no-deps \
+            -e DB_ENGINE=sqlite \
+            -e WAIT_FOR_DB=0 \
+            -e RUN_MIGRATIONS=0 \
+            -e RUN_SYNCDB=0 \
+            scaffold-ci-backend python manage.py test
+          docker compose -f compose.yaml -f .runtime/compose.apps.yaml run --rm --no-deps \
+            --entrypoint sh scaffold-ci-frontend -ec '
+              nginx
+              js_file="$(find /usr/share/nginx/html/assets -maxdepth 1 -type f -name "*.js" | head -n 1)"
+              css_file="$(find /usr/share/nginx/html/assets -maxdepth 1 -type f -name "*.css" | head -n 1)"
+              test -n "$js_file" && test -n "$css_file"
+              js_name="$(basename "$js_file")"
+              css_name="$(basename "$css_file")"
+              wget -S -O /tmp/scaffold-ci.js "http://127.0.0.1/scaffold-ci/assets/$js_name" 2>/tmp/scaffold-ci-js.headers
+              wget -S -O /tmp/scaffold-ci.css "http://127.0.0.1/scaffold-ci/assets/$css_name" 2>/tmp/scaffold-ci-css.headers
+              grep -qi "Content-Type: application/javascript" /tmp/scaffold-ci-js.headers
+              grep -qi "Content-Type: text/css" /tmp/scaffold-ci-css.headers
+              cmp "$js_file" /tmp/scaffold-ci.js
+              cmp "$css_file" /tmp/scaffold-ci.css
+              wget -q -O - http://127.0.0.1/scaffold-ci/nested/page | grep -q "<div id=\"app\"></div>"
+            '
+
+  powershell-checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              $errors | ForEach-Object {
+                Write-Error "$($_.Extent.File):$($_.Extent.StartLineNumber): $($_.Message)" -ErrorAction Continue
+              }
+            }
+          }
+          if ($failed) { exit 1 }
+
+  backend-tests:
+    needs: registry-checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.registry-checks.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/${{ matrix.app }}/backend/requirements.txt
+      - run: pip install -r apps/${{ matrix.app }}/backend/requirements.txt
+      - run: python manage.py test
+        working-directory: apps/${{ matrix.app }}/backend
+        env:
+          DB_ENGINE: sqlite
+          DJANGO_DEBUG: "0"
+          DJANGO_SECRET_KEY: ci-only-django-secret-32-characters-minimum
+          AUTH_TOKEN_SECRET: ci-only-auth-token-secret-32-characters-minimum
+          DJANGO_ALLOWED_HOSTS: oa.hzmaijie.com,testserver,localhost,127.0.0.1
+          AUTH_SERVICE_INTROSPECTION_SECRET: ci-only-service-secret-32-characters-minimum
+          AUTH_COOKIE_SECURE: "1"
+          DINGTALK_JSAPI_ALLOWED_ORIGINS: https://ci.example.test
+
+  frontend-checks:
+    needs: registry-checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJSON(needs.registry-checks.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/frontend/package-lock.json
+      - run: npm ci
+        working-directory: apps/${{ matrix.app }}/frontend
+      - run: npm test --if-present
+        working-directory: apps/${{ matrix.app }}/frontend
+      - run: npm run build
+        working-directory: apps/${{ matrix.app }}/frontend

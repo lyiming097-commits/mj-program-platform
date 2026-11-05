@@ -1,0 +1,59 @@
+# frontend
+node_modules/
+**/node_modules/
+apps/*/frontend/dist/
+apps/*/frontend/dist*/
+apps/*/frontend/.env
+apps/*/frontend/.env.*
+apps/*/frontend/*.log
+
+# backend
+apps/*/backend/.env
+apps/*/backend/db.sqlite3
+apps/*/backend/*.log
+apps/*/backend/images/*
+apps/*/backend/files/*
+apps/*/backend/staticfiles/
+apps/*/backend/.thumb_cache/
+apps/*/backend/**/__pycache__/
+apps/*/backend/**/*.pyc
+**/__pycache__/
+**/*.pyc
+
+# common
+# Local resources and generated artifacts (keep on disk; do not sync)
+/program_resource/
+/.codex-artifacts/
+
+.DS_Store
+.env
+.env.*
+!.env.docker.example
+*.env.docker
+!*env.docker.example
+.runtime/
+secrets/apps/
+.codex
+.agents/
+.vscode/
+.postgres/
+.local/
+logs/
+export/
+backups/
+*.log
+nohup.out
+
+# Build caches, virtual environments, and local credentials
+*.tsbuildinfo
+**/.venv/
+**/venv/
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.pfx
+
+# Original full-platform CI is archived in .github/workflow-reference/.
+/.github/workflows/auth-portal-checks.yml

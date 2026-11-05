@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "id": "after-sales",
+  "name": "迈杰服务",
+  "description": "售前、售中、售后与现场服务协同管理",
+  "icon": "Wrench",
+  "status": "active",
+  "order": 120,
+  "portal": {
+    "visible": true,
+    "path": "/after-sales/"
+  },
+  "auth": {
+    "internalService": {
+      "name": "after-sales-backend",
+      "service": "after-sales-backend"
+    }
+  },
+  "gatewayNetworks": [
+    "after_sales_edge_net"
+  ],
+  "routes": [
+    {
+      "path": "/api/after-sales/",
+      "target": "after-sales-backend",
+      "port": 8000,
+      "clientMaxBodySize": "201m"
+    },
+    {
+      "path": "/after-sales",
+      "exact": true,
+      "target": "after-sales-frontend"
+    },
+    {
+      "path": "/after-sales/",
+      "target": "after-sales-frontend"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "django-secret",
+      "file": "django.secret",
+      "generateBytes": 48,
+      "mounts": [
+        {
+          "service": "after-sales-backend",
+          "env": "DJANGO_SECRET_KEY"
+        }
+      ]
+    },
+    {
+      "id": "database-password",
+      "file": "database-password.secret",
+      "generateBytes": 32,
+      "mounts": [
+        {
+          "service": "after-sales-backend",
+          "env": "DB_PASSWORD"
+        },
+        {
+          "service": "after-sales-postgres",
+          "env": "POSTGRES_PASSWORD"
+        }
+      ]
+    },
+    {
+      "id": "manual-renderer-token",
+      "file": "manual-renderer.token",
+      "generateBytes": 32,
+      "mounts": [
+        {
+          "service": "after-sales-backend",
+          "env": "MANUAL_RENDERER_TOKEN"
+        },
+        {
+          "service": "after-sales-manual-renderer",
+          "env": "MANUAL_RENDERER_TOKEN"
+        }
+      ]
+    }
+  ],
+  "compose": {
+    "services": {
+      "after-sales-backend": {
+        "x-platform-template": "backend",
+        "image": "mj_program/after-sales-backend:${APP_VERSION:-local}",
+        "container_name": "mj_after_sales_backend",
+        "depends_on": {
+          "after-sales-postgres": {
+            "condition": "service_healthy"
+          },
+          "redis": {
+            "condition": "service_started"
+          }
+        },
+        "networks": [
+          "after_sales_edge_net",
+          "mj_services",
+          "after_sales_db_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/after-sales/backend/Dockerfile",
+          "args": {
+            "PYTHON_IMAGE": "${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim}",
+            "PIP_INDEX_URL": "${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}",
+            "PIP_TRUSTED_HOST": "${PIP_TRUSTED_HOST:-mirrors.aliyun.com}"
+          }
+        },
+        "environment": {
+          "DJANGO_ALLOWED_HOSTS": "oa.hzmaijie.com,service.hzmaijie.com,after-sales-backend,localhost,127.0.0.1",
+          "CORS_ALLOWED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "DJANGO_CSRF_TRUSTED_ORIGINS": "https://oa.hzmaijie.com,https://oa.hzmaijie.com:4433",
+          "DB_HOST": "after-sales-postgres",
+          "DB_NAME": "after_sales_db",
+          "DB_USER": "after_sales_user",
+          "MEDIA_ROOT": "/app/uploads",
+          "CRM_PROJECT_SOURCE_URL": "${CRM_PROJECT_SOURCE_URL:-http://crm-backend:8000/api/crm/}",
+          "CRM_PROJECT_SOURCE_TIMEOUT_SECONDS": "${CRM_PROJECT_SOURCE_TIMEOUT_SECONDS:-8}",
+          "CRM_PROJECT_SOURCE_SYNC_INTERVAL_SECONDS": "${CRM_PROJECT_SOURCE_SYNC_INTERVAL_SECONDS:-300}",
+          "PRODUCT_ARCHIVE_CATALOG_URL": "${PRODUCT_ARCHIVE_CATALOG_URL:-http://product-archive-backend:8000/api/internal/product-catalog/}",
+          "PRODUCT_ARCHIVE_CATALOG_TIMEOUT_SECONDS": "${PRODUCT_ARCHIVE_CATALOG_TIMEOUT_SECONDS:-8}",
+          "MANUAL_RENDERER_URL": "http://after-sales-manual-renderer:3000/render",
+          "MANUAL_RENDERER_TIMEOUT_SECONDS": "90",
+          "MANUAL_RENDER_CACHE_TTL_SECONDS": "21600",
+          "RUN_MIGRATIONS": "1",
+          "RUN_SYNCDB": "0",
+          "COLLECT_STATIC": "0"
+        },
+        "volumes": [
+          "after_sales_uploads:/app/uploads"
+        ],
+        "healthcheck": {
+          "test": "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready', timeout=3).read()\""
+        }
+      },
+      "after-sales-manual-renderer": {
+        "image": "mj_program/after-sales-manual-renderer:${APP_VERSION:-local}",
+        "container_name": "mj_after_sales_manual_renderer",
+        "restart": "unless-stopped",
+        "read_only": true,
+        "cap_drop": [
+          "ALL"
+        ],
+        "cap_add": [
+          "DAC_OVERRIDE"
+        ],
+        "security_opt": [
+          "no-new-privileges:true"
+        ],
+        "tmpfs": [
+          "/tmp:size=512m,mode=1777"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/after-sales/manual-renderer/Dockerfile",
+          "args": {
+            "PLAYWRIGHT_IMAGE": "${PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.55.0-noble}"
+          }
+        },
+        "environment": {
+          "WAIT_FOR_DB": "0",
+          "PORT": "3000",
+          "MANUAL_RENDERER_MAX_PDF_BYTES": "31457280",
+          "MANUAL_RENDERER_MAX_DOCUMENT_HEIGHT": "30000",
+          "MANUAL_RENDERER_NAVIGATION_TIMEOUT_MS": "60000"
+        },
+        "networks": [
+          "after_sales_edge_net"
+        ],
+        "healthcheck": {
+          "test": "node -e \"fetch('http://127.0.0.1:3000/health').then(response => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))\""
+        }
+      },
+      "after-sales-frontend": {
+        "x-platform-template": "frontend",
+        "image": "mj_program/after-sales-frontend:${APP_VERSION:-local}",
+        "container_name": "mj_after_sales_frontend",
+        "networks": [
+          "after_sales_edge_net"
+        ],
+        "build": {
+          "context": ".",
+          "dockerfile": "apps/after-sales/frontend/Dockerfile",
+          "args": {
+            "NODE_IMAGE": "${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}",
+            "NGINX_IMAGE": "${NGINX_IMAGE:-docker.m.daocloud.io/library/nginx:1.27-alpine}",
+            "NPM_REGISTRY": "${NPM_REGISTRY:-https://registry.npmmirror.com}",
+            "VITE_API_BASE_URL": "${VITE_API_BASE_URL:-}",
+            "VITE_DING_CORP_ID": "${VITE_DING_CORP_ID:-}"
+          }
+        },
+        "environment": {
+          "WEB_SERVICE_NAME": "after-sales-frontend"
+        }
+      },
+      "after-sales-postgres": {
+        "x-platform-template": "postgres",
+        "container_name": "mj_after_sales_postgres",
+        "environment": {
+          "POSTGRES_USER": "after_sales_user",
+          "POSTGRES_DB": "after_sales_db"
+        },
+        "volumes": [
+          "after_sales_postgres_data:/var/lib/postgresql/data"
+        ],
+        "networks": [
+          "after_sales_db_net"
+        ]
+      }
+    },
+    "networks": {
+      "after_sales_edge_net": {
+        "name": "mj_program_after_sales_edge",
+        "ipam": {
+          "driver": "default",
+          "config": [
+            {
+              "subnet": "198.19.16.0/24",
+              "gateway": "198.19.16.1"
+            }
+          ]
+        }
+      },
+      "after_sales_db_net": {
+        "name": "mj_program_after_sales_db",
+        "ipam": {
+          "driver": "default",
+          "config": [
+            {
+              "subnet": "198.19.17.0/24",
+              "gateway": "198.19.17.1"
+            }
+          ]
+        },
+        "internal": true
+      }
+    },
+    "volumes": {
+      "after_sales_postgres_data": {},
+      "after_sales_uploads": {}
+    }
+  }
+}
