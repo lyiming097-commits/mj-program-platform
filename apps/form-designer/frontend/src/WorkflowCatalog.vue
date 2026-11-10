@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { Boxes, BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, FileText, Headset, Package, ShoppingCart, Users, Wallet } from '@lucide/vue'
 import type { FormSchema, WorkflowSchema } from './types'
-import { publishedWorkflowCategories, workflowCategory } from './workflow-categories'
+import { categoryLabel, publishedWorkflowCategories, recycledCategories, workflowCategory } from './workflow-categories'
 
 type PublishedForm = { workflow: WorkflowSchema; form: FormSchema }
 const props = defineProps<{ items: PublishedForm[]; loading: boolean }>()
@@ -19,7 +19,8 @@ const categories = computed(() => [
   allCategory, ...publishedWorkflowCategories(props.items.map(({ workflow }) => workflow)),
 ])
 const filteredItems = computed(() => props.items.filter(({ workflow }) =>
-  selectedCategory.value === allCategory || workflowCategory(workflow) === selectedCategory.value,
+  !recycledCategories.value.has(workflowCategory(workflow)) &&
+  (selectedCategory.value === allCategory || workflowCategory(workflow) === selectedCategory.value),
 ))
 const selectedTabId = computed(() => catalogId + '-category-' + categories.value.indexOf(selectedCategory.value))
 
@@ -102,7 +103,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
           :class="{ active: selectedCategory === category }"
           @click="selectedCategory = category"
           @keydown="handleCategoryKey($event, index)"
-        >{{ category }}</button>
+        >{{ categoryLabel(category) }}</button>
       </div>
       <div class="process-category-controls">
         <button type="button" aria-label="向左滚动流程分类" :disabled="!canScrollLeft" @click="scrollCategories(-1)"><ChevronLeft :size="18" /></button>

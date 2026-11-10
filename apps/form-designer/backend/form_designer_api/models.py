@@ -66,3 +66,20 @@ class CategorySupervisorState(models.Model):
     id = models.PositiveSmallIntegerField(primary_key=True, default=1)
     revision = models.PositiveIntegerField(default=1)
     assignments = models.JSONField(default=dict)
+    names = models.JSONField(default=dict)
+    administrators = models.JSONField(default=dict)
+    deleted_categories = models.JSONField(default=dict)
+
+
+class UploadedFile(models.Model):
+    """Private files live in the App database and follow its backup lifecycle."""
+    id = models.CharField(max_length=32, primary_key=True)
+    owner_id = models.CharField(max_length=80, db_index=True)
+    workflow_id = models.CharField(max_length=80, db_index=True)
+    form_id = models.CharField(max_length=80)
+    field_id = models.CharField(max_length=80)
+    name = models.CharField(max_length=240)
+    content_type = models.CharField(max_length=80)
+    size = models.PositiveIntegerField()
+    content = models.BinaryField()
+    created_at = models.DateTimeField(auto_now_add=True)

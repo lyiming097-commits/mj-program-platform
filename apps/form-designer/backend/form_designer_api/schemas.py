@@ -41,8 +41,14 @@ class WorkflowPayload(BaseModel):
     updatedAt: str | None = None
 
 
+class ApprovalDraftPayload(BaseModel):
+    form: FormPayload
+    workflow: WorkflowPayload
+
+
 class WorkflowRunPayload(BaseModel):
     values: dict = Field(default_factory=dict)
+    expectedVersion: int | None = None
 
 
 class WorkflowRecallPayload(BaseModel):
@@ -60,7 +66,7 @@ class TaskActionPayload(BaseModel):
 class RecordPayload(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     applicant: str = Field(default="钟小康", max_length=100)
-    values: dict[str, str] = Field(default_factory=dict)
+    values: dict[str, str | int | float | list[str]] = Field(default_factory=dict)
 
 
 class ApprovalCreatePayload(BaseModel):

@@ -1,4 +1,5 @@
 from django.db import transaction
+from .category_supervisors import managed_categories
 from .errors import HTTPException
 from .models import PermissionRule, PermissionState
 from .organization import department_id, organization_snapshot, routing_users
@@ -45,10 +46,13 @@ def capabilities(request):
     if not user_id:
         raise HTTPException(401, '请先通过统一身份中心登录')
     rules = rules_list()
-    if not rules:
+    categories = managed_categories(user_id)
+    if not rules and not categories:
         return set()
     departments, employees, _revision = organization_snapshot()
     granted = {permission for permission in PERMISSIONS if user_id in effective_members(permission, rules, departments, employees)}
+    if categories and any(str(item.get('userId', item.get('id', ''))) == user_id for item in employees):
+        granted.add('user')
     if 'admin' in granted:
         granted.update(PERMISSIONS)
     if 'designer' in granted:
@@ -59,13 +63,15 @@ def capabilities(request):
 def current_user(request, grants):
     user_id = str(request.auth_user_id)
     user = next((item for item in routing_users() if item['username'] == user_id), None)
+    categories = managed_categories(user_id) if user else []
     if user is None:
         user = {'username': user_id, 'displayName': getattr(request, 'auth_user_name', '') or user_id,
                 'department': '', 'departmentIds': [], 'managerUsername': None, 'role': 'employee'}
-    return {**user, 'role': 'admin' if grants & {'admin', 'designer'} else user['role'],
+    return {**user, 'role': 'admin' if grants & {'admin', 'designer'} or categories else user['role'],
             'actorUserId': getattr(request, 'auth_actor_user_id', '') or user_id,
             'actorName': getattr(request, 'auth_actor_name', '') or user['displayName'],
-            'canManagePermissions': 'admin' in grants, 'canDesign': bool(grants & {'admin', 'designer'})}
+            'canManagePermissions': 'admin' in grants, 'canDesignGlobally': bool(grants & {'admin', 'designer'}),
+            'canDesign': bool(grants & {'admin', 'designer'} or categories), 'managedCategories': categories}
 
 
 def save_rules(payload):

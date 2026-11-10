@@ -47,3 +47,234 @@
 .application-recall-panel h3,.application-recall-record h3{margin:0 0 8px;font-size:13px;color:#40566c}
 .application-recall-panel p,.application-recall-record p{margin:6px 0;color:#6d7f90;font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 .application-recall-button{color:#ac4a1b!important;border-color:#e6bfa6!important;background:#fff7ef!important}
+.platform-content .employee-main.approval-home {
+  max-width: 1200px;
+  padding-top: 20px;
+}
+
+.portal-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(230px, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.portal-overview > .approval-record-panel,
+.portal-notices,
+.portal-applications {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #e1e8f1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px #243b5610;
+}
+
+.portal-overview > .approval-record-panel {
+  min-height: 262px;
+}
+
+.portal-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 14px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.portal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.portal-tabs > button {
+  position: relative;
+  flex: none;
+  min-height: 43px;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  color: #65758c;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.portal-tabs > button[aria-pressed="true"] {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.portal-tabs > button[aria-pressed="true"]::after {
+  position: absolute;
+  bottom: 1px;
+  left: calc(50% - 10px);
+  width: 20px;
+  height: 3px;
+  border-radius: 3px;
+  background: #1683ee;
+  content: '';
+}
+
+.portal-record-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+
+.portal-record-body {
+  max-height: 270px;
+  overflow-y: auto;
+}
+
+.portal-record-body .approval-empty {
+  display: flex;
+  min-height: 212px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #74859b;
+}
+
+.portal-record-body .approval-empty svg { color: #c5d2e0; }
+
+.portal-record-body button.history-row {
+  width: 100%;
+  background: #fff;
+  text-align: left;
+}
+
+.portal-record-body button.history-row:hover {
+  background: #f8fbff;
+}
+
+.portal-notices {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+
+.portal-notices > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.portal-notices h2,
+.portal-applications h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.portal-notices p {
+  margin: 3px 0 0;
+  color: #79899f;
+  font-size: 12px;
+}
+
+.portal-notice-icon,
+.portal-app-icon {
+  display: grid;
+  flex: none;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 7px;
+  background: #edf5ff;
+  color: #2880d3;
+}
+
+.portal-notice-icon {
+  background: #fff5e7;
+  color: #d77b19;
+}
+
+.portal-notice-empty {
+  display: flex;
+  flex: 1;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #75869c;
+  font-size: 13px;
+}
+
+.portal-notice-empty svg { color: #c5d2e0; }
+
+.portal-applications {
+  margin-top: 16px;
+  padding: 0 18px 18px;
+}
+
+.portal-applications > .portal-tabs {
+  border-bottom: 1px solid #e4ebf3;
+}
+
+.portal-applications h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 16px 0 10px;
+  font-size: 13px;
+}
+
+.portal-applications h2 svg { color: #3779e1; }
+
+.portal-app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portal-app-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 11px;
+  border: 1px solid #e1e8f2;
+  border-radius: 7px;
+  background: #fff;
+  color: #152b48;
+  text-align: left;
+  text-decoration: none;
+}
+
+a.portal-app-card:hover, button.portal-app-card:hover {
+  border-color: #a7c7fa;
+  background: #f9fbff;
+}
+
+.portal-app-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.portal-app-copy strong { font-size: 13px; }
+.portal-app-copy small, .portal-app-state { color: #74859b; font-size: 11px; }
+.portal-app-state { flex: none; }
+.portal-app-empty { margin: 0; padding: 18px 0; color: #74859b; font-size: 13px; }
+
+@media (max-width: 1000px) {
+  .portal-overview { grid-template-columns: minmax(0, 1.8fr) minmax(185px, 1fr); }
+  .portal-app-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 650px) {
+  .portal-overview, .portal-app-grid { grid-template-columns: 1fr; }
+  .portal-tabs { gap: 12px; }
+  .portal-record-header { padding: 0 9px; }
+  .portal-record-actions .approval-refresh { display: none; }
+}

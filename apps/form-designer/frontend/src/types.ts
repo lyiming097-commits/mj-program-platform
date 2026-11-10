@@ -67,7 +67,7 @@ export interface FormRecord {
   formId: string
   title: string
   applicant: string
-  values: Record<string, string>
+  values: FormValues
   createdAt: string
   updatedAt: string
   deletedAt?: string | null
@@ -76,7 +76,16 @@ export interface FormRecord {
 export type FormValue = string | number | string[]
 export type FormValues = Record<string, FormValue>
 
-export type WorkflowNodeType = 'start' | 'approval' | 'executor' | 'condition' | 'end'
+export interface UploadedFileInfo {
+  id: string
+  name: string
+  size: number
+  contentType: string
+  isImage: boolean
+}
+
+export type WorkflowNodeType = 'start' | 'approval' | 'executor' | 'cc' | 'condition' | 'end'
+export type AddableWorkflowNodeType = Exclude<WorkflowNodeType, 'start' | 'end'>
 export type AssigneeMode = 'specified' | 'direct_manager' | 'department_manager' | 'initiator' | 'form_field'
 export type ConditionOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'empty' | 'not_empty'
 export type ApprovalOpinionMode = 'none' | 'optional' | 'required'
@@ -120,6 +129,7 @@ export interface WorkflowNode {
 }
 
 export interface WorkflowSchema {
+  draftSavedAt?: string
   disabledAt?: string | null
   deletedAt?: string | null
   id: string
@@ -145,7 +155,7 @@ export interface WorkflowRunTask {
   id: string
   nodeId: string
   nodeName: string
-  nodeType: 'approval' | 'executor'
+  nodeType: 'approval' | 'executor' | 'cc'
   assigneeMode: AssigneeMode
   assignees: string[]
   assigneeNames: string[]
@@ -163,7 +173,7 @@ export interface WorkflowRunTask {
 export interface WorkflowPreview {
   version: number
   incomplete: boolean
-  steps: { name: string; type: 'approval' | 'executor'; assigneeNames: string[] }[]
+  steps: { name: string; type: WorkflowRunTask['nodeType']; assigneeNames: string[] }[]
 }
 
 export interface WorkflowRunResult {
@@ -200,6 +210,8 @@ export interface AuthUser {
   managerUsername?: string | null
   canManagePermissions?: boolean
   canDesign?: boolean
+  canDesignGlobally?: boolean
+  managedCategories?: string[]
 }
 
 export interface WorkflowTaskInboxItem {
@@ -219,6 +231,10 @@ export interface WorkflowTaskInboxItem {
 }
 
 
+export type ApprovalRecordScope = 'pending' | 'mine' | 'processed' | 'copied'
+export type ApprovalSection = ApprovalRecordScope | 'workspace' | 'settings'
+export type ApprovalPortalView = 'home' | 'workspace' | 'records' | 'settings'
+
 export interface ApprovalRecord {
   id: string
   title: string
@@ -231,9 +247,12 @@ export interface ApprovalRecord {
   currentNode: string
   currentHandlers: string[]
   createdAt: string
+  taskArrivedAt?: string | null
   mine: boolean
+  delegated?: boolean
   participating: boolean
   processed: boolean
+  copied?: boolean
   approving: boolean
   executing: boolean
   canHandle: boolean
@@ -242,6 +261,40 @@ export interface ApprovalCreated { form: FormSchema; workflow: WorkflowSchema }
 export interface CategorySupervisorConfig {
   items: Array<{ category: string; supervisorUserIds: string[] }>
   revision: string
+}
+export interface WorkflowCategoryDefinition { key: string; name: string; deletedAt?: string | null }
+export interface WorkflowCategorySettings {
+  items: Array<WorkflowCategoryDefinition & { administratorUserIds: string[]; supervisorUserIds: string[] }>
+  revision: string
+}
+export interface PersonnelTemplateHit {
+  workflowId: string
+  workflowName: string
+  nodeId: string
+  nodeName: string
+  category: string
+  categoryKey: string
+  updatedAt: string
+  locatable: boolean
+  publishedVersion: number | null
+  draft: boolean
+  replaceable: boolean
+  supervisor: boolean
+}
+export interface PersonnelImpact {
+  people: { id: string; name: string; active: boolean }[]
+  person: PersonnelImpact['people'][number] | null
+  templates: PersonnelTemplateHit[]
+  runs: { id: string; title: string; workflowName: string; category: string; tasks: { id: string; name: string; status: string }[] }[]
+  flows: PersonnelFlow[]
+}
+export interface PersonnelFlow {
+  id: string
+  name: string
+  category: string
+  updatedAt: string
+  publishedVersion: number | null
+  nodes: WorkflowNode[]
 }
 export interface SupervisorDirectory {
   orgRevision: number
@@ -252,8 +305,9 @@ export interface SupervisorDirectory {
   }>
 }
 export interface ApprovalWorkspaceTarget {
+  nodeId?: string
   page: '表单设计' | '流程设计' | '数据管理'
   formId?: string
   workflowId?: string
-  create?: 'form' | 'workflow'
+  newCategory?: string
 }

@@ -3,7 +3,7 @@
 .platform-content .employee-app{min-height:calc(100vh - 56px);height:calc(100vh - 56px);display:block}
 .platform-content .employee-main{margin:0;width:100%;height:calc(100vh - 56px);overflow:auto}
 .platform-content .app-shell{position:relative;height:calc(100vh - 56px);min-height:0}
-.platform-content .topbar .top-nav{display:none}
+.platform-content .app-shell > .designer-layout{height:100%}
 .platform-content .applications-dialog,.platform-content .employee-dialog{max-width:100%;width:100%;border-radius:0;box-shadow:none;max-height:100%;height:100%}
 .platform-mobile-nav{display:none}
 @media(max-width:800px){.platform-content.authenticated{margin-left:0;padding-top:100px}.platform-mobile-nav{position:fixed;display:flex;overflow:auto;left:0;right:0;top:56px;height:44px;background:white;border-bottom:1px solid #e2e8f0;z-index:70;gap:4px;padding:4px 8px;box-sizing:border-box}.platform-mobile-nav button{flex:none;border:0;background:transparent;border-radius:5px;padding:0 10px;color:#64748b;font-size:12px}.platform-mobile-nav button.active{background:#eff6ff;color:#2563eb}.platform-content .employee-main,.platform-content .employee-app,.platform-content .app-shell{height:calc(100vh - 100px);min-height:0}}
@@ -11,6 +11,7 @@
 .contract-drawer .employee-dialog,.contract-drawer .applications-dialog,.contract-drawer .record-dialog{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;box-shadow:none;display:flex;flex-direction:column}.contract-drawer .employee-dialog-body,.contract-drawer .applications-dialog-body,.contract-drawer .record-dialog-body{overflow:auto;flex:1}
 
 .management-navigation{height:48px;display:flex;align-items:center;gap:8px;overflow-x:auto;padding:0 18px;background:#fff;border-bottom:1px solid #e2e8f0;box-sizing:border-box}
+.platform-content.approval-editor-visible .management-navigation{justify-content:safe center}
 .management-navigation button{display:flex;align-items:center;gap:6px;flex:none;height:32px;padding:0 12px;border:0;border-radius:6px;background:transparent;color:#64748b;font-size:13px;cursor:pointer}
 .management-navigation button:hover,.management-navigation button.active{background:#eff6ff;color:#2563eb}.management-navigation .management-back{margin-right:12px;color:#334155}
 .platform-content.management-open .app-shell{height:calc(100vh - 104px)}
@@ -20,3 +21,113 @@
 .platform-content.authenticated.without-primary-nav{margin-left:0;padding-top:56px}
 .platform-content.without-primary-nav .employee-main,.platform-content.without-primary-nav .employee-app,.platform-content.without-primary-nav .app-shell,.platform-content.without-primary-nav .approval-workspace,.platform-content.without-primary-nav .approval-status-page{height:calc(100vh - 56px);min-height:0}
 .platform-content.without-primary-nav.management-open .app-shell{height:calc(100vh - 104px)}
+.portal-top-tabs {
+  position: fixed;
+  z-index: 81;
+  top: 11px;
+  left: 146px;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border: 1px solid #dce6f1;
+  border-radius: 5px;
+  background: #f7f9fc;
+}
+
+.portal-top-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: #53657d;
+  font-size: 13px;
+}
+
+.portal-top-tabs button[aria-current="page"] {
+  background: #eaf3ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.portal-sidebar nav button {
+  border: 1px solid #e3edf9;
+  background: #f2f7fd;
+  font-weight: 500;
+}
+
+.portal-sidebar nav button.active {
+  border-color: #a6c7f7;
+}
+
+.approval-navigation {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 60;
+  inset: 56px auto 0 0;
+  width: 216px;
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.approval-navigation ul { margin: 0; padding: 0; list-style: none; }
+.approval-navigation li + li { margin-top: 4px; }
+.approval-navigation button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+.approval-navigation button svg { flex: none; }
+.approval-navigation button:hover { background: #f1f5f9; }
+.approval-navigation button[aria-current="page"] { background: #eaf3ff; color: #2563eb; font-weight: 600; }
+
+@media (max-width: 800px) {
+  .portal-top-tabs { display: none; }
+  .approval-navigation {
+    inset: 100px 0 auto;
+    width: auto;
+    height: 46px;
+    padding: 4px 8px;
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .approval-navigation-list { display: flex; gap: 4px; }
+  .approval-navigation li { flex: none; }
+  .approval-navigation li + li { margin-top: 0; }
+  .approval-navigation button { min-height: 36px; white-space: nowrap; font-size: 13px; }
+  .platform-content.authenticated.approval-navigation-open { padding-top: 146px; }
+  .platform-content.approval-navigation-open .employee-app,
+  .platform-content.approval-navigation-open .approval-workspace,
+  .platform-content.approval-navigation-open .approval-status-page { height: calc(100vh - 146px); min-height: 0; }
+  .portal-top-tabs.approval-center-open {
+    display: flex;
+    top: 56px;
+    left: 0;
+    right: 0;
+    height: 44px;
+    padding: 4px 8px;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: #fff;
+    overflow-x: auto;
+  }
+  .portal-top-tabs button { flex: none; white-space: nowrap; }
+  .platform-content.authenticated.approval-editor-visible { padding-top: 100px; }
+  .platform-content.management-open.approval-editor-visible .app-shell { height: calc(100vh - 148px); }
+}

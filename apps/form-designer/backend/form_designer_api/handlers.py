@@ -5,6 +5,8 @@ from django.db import IntegrityError
 from .errors import HTTPException
 from .repositories import FormRepository, SubmissionRepository, WorkflowRepository, WorkflowRunRepository, utc_now
 from .organization import routing_users
+from .category_supervisors import can_edit_category_form, category_key, effective_category, recycled_categories, workflow_categories, workflow_form_ids
+from .models import Form
 from .schemas import ApprovalCreatePayload, FormPayload, RecordPayload, TaskActionPayload, WorkflowPayload, WorkflowRunPayload
 from .services import (
     list_all_workflow_runs as list_all_workflow_runs_service,
@@ -31,6 +33,8 @@ def list_form_records(form_id: str, current_user: dict, recycle: bool=False) -> 
 
 
 def create_form_record(form_id: str, payload: RecordPayload, current_user: dict) -> dict:
+    from .uploads import validate_record_files
+    validate_record_files(form_id, payload.values)
     now = datetime.now(timezone.utc).isoformat()
     record_id = uuid.uuid4().hex
     SubmissionRepository.create_record(record_id, form_id, payload.title, payload.applicant, json.dumps(payload.values, ensure_ascii=False), now)
@@ -38,6 +42,8 @@ def create_form_record(form_id: str, payload: RecordPayload, current_user: dict)
 
 
 def update_form_record(form_id: str, record_id: str, payload: RecordPayload, current_user: dict) -> dict:
+    from .uploads import validate_record_files
+    validate_record_files(form_id, payload.values)
     now = datetime.now(timezone.utc).isoformat()
     row = SubmissionRepository.update_record(record_id, form_id, payload.title, payload.applicant, json.dumps(payload.values, ensure_ascii=False), now)
     if row is None:
@@ -63,6 +69,9 @@ def list_forms(current_user: dict) -> list[dict]:
     forms = [normalize_form_schema(json.loads(row[0])) for row in rows]
     if not any((form['id'] == 'sample' for form in forms)):
         forms.append(seed_form())
+    if current_user.get('managedCategories') and current_user.get('canDesignGlobally') is False:
+        categories = set(current_user['managedCategories'])
+        return [form for form in forms if can_edit_category_form(form['id'], categories)]
     if current_user['role'] != 'admin':
         workflow_rows = WorkflowRepository.list_schemas()
         published_form_ids = {(json.loads(row[0]).get('publishedSnapshot') or {}).get('formId') for row in workflow_rows}
@@ -99,9 +108,16 @@ def list_workflows(current_user: dict, recycle: bool = False) -> list[dict]:
         return [seed_workflow()] if current_user['role'] == 'admin' and not recycle else []
     workflows = [normalize_workflow_schema(json.loads(row[0])) for row in rows]
     workflows = [workflow for workflow in workflows if bool(workflow.get('deletedAt')) == recycle]
-    if current_user['role'] != 'admin':
+    if current_user['role'] != 'admin' or current_user.get('canDesignGlobally') is False:
+        archived = recycled_categories()
         published_workflows = []
+        categories = set(current_user.get('managedCategories') or [])
         for workflow in workflows:
+            if effective_category(workflow) in archived:
+                continue
+            if workflow_categories(workflow) <= categories:
+                published_workflows.append(workflow)
+                continue
             snapshot = workflow.get('publishedSnapshot')
             if not snapshot or workflow.get('deletedAt'):
                 continue
@@ -124,6 +140,44 @@ def get_workflow(workflow_id: str, current_user: dict) -> dict:
     return workflow
 
 
+def rename_workflow(workflow, payload, current_user):
+    name = payload.get('name')
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 80:
+        raise HTTPException(422, '请输入流程名称，最多80个字')
+    name = name.strip()
+    if workflow.get('deletedAt'):
+        raise HTTPException(410, '请先恢复该流程再改名')
+    if payload.get('updatedAt') != (workflow.get('updatedAt') or ''):
+        raise HTTPException(409, '流程已被更新，请刷新列表后再改名')
+
+    workflow_id = workflow['id']
+    form_ids = workflow_form_ids(workflow)
+    for row in WorkflowRepository.list_schemas():
+        other = json.loads(row[0])
+        if other['id'] != workflow_id and form_ids & workflow_form_ids(other):
+            raise HTTPException(409, '此流程关联的表单被多个流程共用，请在表单设计中管理名称')
+
+    locked = {row.id: row for row in Form.objects.select_for_update().filter(pk__in=form_ids).order_by('id')}
+    now = utc_now()
+    snapshot = workflow.get('publishedSnapshot')
+    forms = []
+    for form_id in sorted(form_ids):
+        form = json.loads(locked[form_id].schema_json) if form_id in locked else load_form(form_id, current_user)
+        previous_time = form.get('updatedAt')
+        form.update(name=name, updatedAt=now)
+        FormRepository.save_schema(form_id, form)
+        forms.append(form)
+        if snapshot and snapshot.get('formId') == form_id and snapshot.get('formSchema'):
+            snapshot['formSchema']['name'] = name
+            if snapshot['formSchema'].get('updatedAt') == previous_time:
+                snapshot['formSchema']['updatedAt'] = now
+    if snapshot:
+        snapshot['name'] = name
+    workflow.update(name=name, updatedAt=now)
+    WorkflowRepository.save_schema(workflow_id, workflow)
+    return {'workflow': workflow, 'forms': forms}
+
+
 def create_workflow(payload: WorkflowPayload, current_user: dict) -> dict:
     result = normalize_workflow_schema(payload.model_dump())
     result['updatedAt'] = datetime.now(timezone.utc).isoformat()
@@ -140,6 +194,7 @@ def put_workflow(workflow_id: str, payload: WorkflowPayload, current_user: dict)
     result = normalize_workflow_schema(payload.model_dump())
     result['updatedAt'] = datetime.now(timezone.utc).isoformat()
     previous = WorkflowRepository.get_schema(workflow_id)
+    result['draftSavedAt'] = result['updatedAt']
     if previous:
         stored = json.loads(previous[0])
         if stored.get('deletedAt'):
@@ -152,9 +207,11 @@ def put_workflow(workflow_id: str, payload: WorkflowPayload, current_user: dict)
 
 
 def change_workflow_status(workflow_id: str, current_user: dict, action: str) -> dict:
-    if current_user.get('canManagePermissions') is not True:
-        raise HTTPException(status_code=403, detail='只有应用管理员可以管理流程状态')
     schema = load_workflow(workflow_id)
+    if current_user.get('canManagePermissions') is not True and (
+        action == 'restore' or not workflow_categories(schema) <= set(current_user.get('managedCategories') or [])
+    ):
+        raise HTTPException(status_code=403, detail='只有对应分类管理员可以管理审批状态')
     if action == 'restore':
         if not schema.get('deletedAt'):
             raise HTTPException(status_code=409, detail='流程不在回收站，请刷新列表')
@@ -225,8 +282,10 @@ def act_on_task(run_id: str, task_id: str, payload: TaskActionPayload, current_u
     return perform_task_action(run_id, task_id, payload, current_user)
 
 def create_approval(payload: ApprovalCreatePayload, current_user: dict) -> dict:
-    if current_user.get("canManagePermissions") is not True:
-        raise HTTPException(status_code=403, detail="只有应用管理员可以新建审批")
+    if current_user.get("canManagePermissions") is not True and category_key(payload.category) not in (current_user.get('managedCategories') or []):
+        raise HTTPException(status_code=403, detail="只有对应分类管理员可以新建审批")
+    if category_key(payload.category) in recycled_categories():
+        raise HTTPException(409, '此流程所属分组已移入回收站')
     assignees = list(dict.fromkeys(payload.assignees))
     valid_ids = {user["username"] for user in routing_users()}
     if not assignees or any(user_id not in valid_ids for user_id in assignees):

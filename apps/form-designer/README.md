@@ -1,5 +1,15 @@
 # 表单设计（平台接入版）
 
+## 图片和附件上传
+
+表单中的图片、附件组件支持多选、拖拽、移除、图片预览和下载；每字段最多 10 个文件，单文件不超过 20 MB。图片接受经过服务端校验的 PNG、JPEG、GIF、WebP，附件按原始字节保存，非图片强制下载。表单设计预览在关联流程已发布时使用真实上传接口，尚未发布时提供本机预览。
+
+文件保存在本 App PostgreSQL 的 `UploadedFile` 表，随数据库备份，无公开静态文件地址。申请值和浏览器草稿仅保存文件 ID；刷新草稿、撤回后重新提交以及当前审批／执行人编辑时均保留文件引用。移除仅解除本次填写的引用，原申请文件保持可读，不执行物理删除。
+
+接口为 `POST /api/form-designer/uploads`（multipart，`file/workflowId/fieldId`；任务补充上传另传 `runId/taskId`）、`GET uploads/{id}` 和 `GET uploads/{id}/content`。元数据和内容接口通过 `runId` 校验申请及字段读取权限；管理数据记录使用 `recordId`，个人未提交文件仅上传者可读。上传再次校验流程可发起、字段可编辑、当前任务处理人，提交时校验引用所属流程和字段。抄送详情和文件读取同步遵守节点字段权限。
+
+安装新增的 Pillow 依赖并执行迁移 `0004_uploadedfile` 后使用。后端回归测试见 `form_designer_api/test_uploads.py`。
+
 App ID：`form-designer`。由 `D:/Desktop/表单设计/` 的现有业务源码迁移，保留 Vue 3 + TypeScript 表单设计、条件流程、审批/执行和数据管理，后端改为 Django + PostgreSQL。原目录及其 MySQL/SQLite 数据未修改。
 
 ## 平台边界

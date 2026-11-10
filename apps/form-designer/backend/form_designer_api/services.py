@@ -139,8 +139,11 @@ def validate_workflow_for_publish(schema: dict, form: dict, users: list[dict]) -
     def visit(items: list[dict]) -> None:
         for node in items:
             node_name = node.get("name") or node.get("id") or "未命名节点"
-            if node.get("type") in {"approval", "executor"}:
+            if node.get("type") in {"approval", "executor", "cc"}:
                 mode = node.get("assigneeMode") or "specified"
+                if node.get("type") == "cc" and mode != "specified":
+                    errors.append(f"“{node_name}”请选择指定抄送成员")
+                    continue
                 if node.get("type") == "approval":
                     if mode not in {"specified", "direct_manager"}:
                         errors.append(f"“{node_name}”请选择直属主管或指定审批成员")
@@ -285,7 +288,7 @@ def evaluate_workflow_route(schema: dict, values: dict[str, Any], fields: dict[s
                     "branchName": selected.get("name", "默认出口"),
                 })
                 visit(selected.get("nodes") or [], [*branch_path, selected.get("name", "默认出口")])
-            elif node_type in {"approval", "executor"}:
+            elif node_type in {"approval", "executor", "cc"}:
                 routed_nodes.append((node, list(branch_path)))
 
     visit(schema.get("nodes") or [], [])
@@ -294,7 +297,7 @@ def evaluate_workflow_route(schema: dict, values: dict[str, Any], fields: dict[s
     if any(node.get('type') == 'approval' and node.get('assigneeMode') == 'direct_manager' for node, _path in routed_nodes):
         from .category_supervisors import resolve_category_supervisors
         category_assignees = resolve_category_supervisors(schema.get('category'), users)
-    for index, (node, branch_path) in enumerate(routed_nodes):
+    for node, branch_path in routed_nodes:
         assignees = list(category_assignees) if node.get('type') == 'approval' and node.get('assigneeMode') == 'direct_manager' else resolve_node_assignees(node, applicant, values, users)
         if not assignees:
             raise HTTPException(status_code=422, detail=f"“{node.get('name') or '审批/执行节点'}”没有解析到有效处理人")
@@ -302,7 +305,6 @@ def evaluate_workflow_route(schema: dict, values: dict[str, Any], fields: dict[s
         permissions = node.get("fieldPermissions") or []
         permission_by_field = {item.get("fieldId"): item.get("permission", "editable") for item in permissions}
         permission_by_field = {field_id: permission_by_field.get(field_id, "editable") for field_id in fields}
-        status = "waiting" if index else ("pending" if assignees else "unassigned")
         tasks.append({
             "id": uuid.uuid4().hex,
             "nodeId": node.get("id", ""),
@@ -312,7 +314,7 @@ def evaluate_workflow_route(schema: dict, values: dict[str, Any], fields: dict[s
             "assignees": assignees,
             "assigneeNames": [user_by_username[username]["displayName"] for username in assignees],
             "branchPath": branch_path,
-            "status": status,
+            "status": "waiting",
             "approvalMode": node.get("approvalMode", "sequential"),
             **({"executionMode": "sequential"} if node.get("type") == "executor" else {}),
             "approvalButtons": node.get("approvalButtons") or [],
@@ -321,7 +323,26 @@ def evaluate_workflow_route(schema: dict, values: dict[str, Any], fields: dict[s
             "activeAssigneeIndex": 0,
             "decisions": [],
         })
+    advance_workflow_tasks(tasks)
     return matched_branches, tasks
+
+
+def advance_workflow_tasks(tasks: list[dict], arrived_at: str | None = None) -> str:
+    for task in tasks:
+        if task.get("status") != "waiting":
+            continue
+        if task.get("nodeType") == "cc":
+            task["status"] = "completed"
+            continue
+        task["status"] = "pending"
+        if arrived_at:
+            task["arrivedAt"] = arrived_at
+        return "pending"
+    return "completed"
+
+
+def is_copy_recipient(task: dict, username: str) -> bool:
+    return task.get("nodeType") == "cc" and task.get("status") == "completed" and username in task.get("assignees", [])
 
 
 def seed_workflow(workflow_id: str = "sample") -> dict:
@@ -347,7 +368,7 @@ def seed_workflow(workflow_id: str = "sample") -> dict:
 
 
 def task_is_actionable_by_user(task: dict, username: str) -> bool:
-    if task.get("status") != "pending" or username not in task.get("assignees", []):
+    if task.get("nodeType") == "cc" or task.get("status") != "pending" or username not in task.get("assignees", []):
         return False
     if (task.get("nodeType") == "approval" and task.get("approvalMode", "sequential") == "sequential") or (
         task.get("nodeType") == "executor" and task.get("executionMode") == "sequential"
@@ -434,6 +455,7 @@ def perform_task_action(run_id: str, task_id: str, payload: TaskActionPayload, c
         values = json.loads(values_json)
         form_json = repository.get_form_schema(row[2])
         form = normalize_form_schema(json.loads(form_json)) if form_json else seed_form(row[2])
+        form = run.get('formSchema') or form
         fields = {field.get("id"): field for field in form.get("fields") or []}
         permissions = {item.get("fieldId"): item.get("permission", "editable") for item in task.get("fieldPermissions") or []}
         for field_id, value in payload.values.items():
@@ -444,6 +466,11 @@ def perform_task_action(run_id: str, task_id: str, payload: TaskActionPayload, c
             if permissions.get(field_id, "editable") != "editable" and value != current_value:
                 raise HTTPException(status_code=403, detail=f"字段“{field.get('label', '')}”仅可查看")
             if permissions.get(field_id, "editable") == "editable":
+                if field.get('type') in {'image', 'attachment'}:
+                    from .uploads import validate_upload_value, file_ids
+                    validate_upload_value(field, value, current_user, run['workflowId'], file_ids(current_value))
+                    if field.get('required') and not file_ids(value) and action != 'save':
+                        raise HTTPException(422, detail=f"请上传“{field.get('label') or '必填附件'}”")
                 if field.get("type") == "number" and value not in (None, ""):
                     try:
                         number = float(value)
@@ -519,11 +546,7 @@ def perform_task_action(run_id: str, task_id: str, payload: TaskActionPayload, c
 
         if should_advance:
             task["status"] = "completed"
-            next_task = next((item for item in run["tasks"] if item.get("status") == "waiting"), None)
-            if next_task:
-                next_task["status"] = "pending"
-            else:
-                run["status"] = "completed"
+            run["status"] = advance_workflow_tasks(run["tasks"], now)
 
         run["updatedAt"] = now
         repository.save_task_action(run_id, row[3], row[2], run, values, now)
@@ -611,6 +634,7 @@ def publish_workflow(workflow_id: str, current_user: dict) -> dict:
         "applicantFieldPermissions": schema.get("applicantFieldPermissions") or [],
     }
     schema["updatedAt"] = published_at
+    schema.pop("draftSavedAt", None)
     WorkflowRepository.save_schema(workflow_id, schema)
     return schema
 
@@ -622,6 +646,7 @@ def redact_run_for_applicant(run: dict) -> dict:
     }
     hidden_ids = {field_id for field_id, permission in permissions.items() if permission == "hidden"}
     result = dict(run)
+    result.pop("submittedByActorId", None)
     result["values"] = {field_id: value for field_id, value in (run.get("values") or {}).items() if field_id not in hidden_ids}
     form = run.get("formSchema")
     if form:
@@ -641,6 +666,9 @@ def prepare_workflow_application(workflow_id: str, payload: WorkflowRunPayload, 
     snapshot = workflow.get("publishedSnapshot")
     if not snapshot:
         raise HTTPException(status_code=409, detail="工作流尚未发布")
+    version = int(snapshot.get("version") or workflow.get("publishedVersion") or 1)
+    if payload.expectedVersion is not None and version != payload.expectedVersion:
+        raise HTTPException(status_code=409, detail="流程已更新，请关闭当前表单并重新打开后再提交。")
     form_id = snapshot.get("formId")
     if not form_id:
         raise HTTPException(status_code=409, detail="已发布流程未关联表单")
@@ -674,6 +702,9 @@ def prepare_workflow_application(workflow_id: str, payload: WorkflowRunPayload, 
         elif default_value not in (None, ""):
             values[field_id] = default_value
         value = values.get(field_id)
+        if field.get('type') in {'image', 'attachment'}:
+            from .uploads import validate_upload_value
+            validate_upload_value(field, value, current_user, workflow_id)
         empty = application_value_empty(value)
         if require_complete and field.get("required") and field.get("type") != "description" and empty:
             raise HTTPException(status_code=422, detail=f"请填写“{field.get('label') or '必填字段'}”")
@@ -737,16 +768,19 @@ def start_workflow_run(workflow_id: str, payload: WorkflowRunPayload, current_us
     submission_id = uuid.uuid4().hex
     now = utc_now()
     first_value = next((values.get(field.get("id")) for field in form.get("fields") or []
-                        if values.get(field.get("id")) not in (None, "", [])), None)
+                        if field.get('type') not in {'image', 'attachment'} and values.get(field.get("id")) not in (None, "", [])), None)
     if isinstance(first_value, list):
         first_value = ", ".join(str(item) for item in first_value)
     title = str(first_value or form.get("name") or "流程申请")[:200]
-    if not tasks:
+    if not any(task["status"] in {"pending", "unassigned"} for task in tasks):
         status = "completed"
-    elif tasks[0]["status"] == "unassigned":
+    elif any(task["status"] == "unassigned" for task in tasks):
         status = "pending_assignment"
     else:
         status = "pending"
+    for task in tasks:
+        if task["status"] in {"pending", "unassigned"}:
+            task["arrivedAt"] = now
     result = {
         "id": run_id,
         "workflowId": workflow_id,
@@ -766,6 +800,9 @@ def start_workflow_run(workflow_id: str, payload: WorkflowRunPayload, current_us
         "applicantFieldPermissions": applicant_permissions,
         "createdAt": now,
     }
+    actor_id = str(current_user.get("actorUserId") or "")
+    if actor_id and actor_id != current_user["username"]:
+        result["submittedByActorId"] = actor_id
     WorkflowRunRepository.create_run(result, now)
     return {**redact_run_for_applicant(result), "canRecall": can_recall_workflow(result, current_user)}
 
@@ -870,6 +907,7 @@ def approval_record_access(run: dict, current_user: dict) -> tuple[bool, bool, l
         task for task in run.get("tasks") or []
         if (run.get("status") == "pending" and task_is_actionable_by_user(task, user_id))
         or any(decision.get("username") == user_id for decision in task.get("decisions") or [])
+        or is_copy_recipient(task, user_id)
     ]
     form = run.get("formSchema") or {}
     permissions = form.get("permissions") or {}
@@ -889,6 +927,15 @@ def approval_record_schemas() -> list[dict]:
     for run in runs:
         run.setdefault("workflowCategory", categories.get(run.get("workflowId"), "常用流程"))
     return runs
+
+
+def is_delegated_submitter(run: dict, user_id: str) -> bool:
+    if run.get("submittedByActorId") != user_id:
+        return False
+    permissions = (run.get("formSchema") or {}).get("permissions") or {}
+    return permissions.get("canViewOwnRecords") is not False and (
+        permissions.get("accessMode") != "members" or user_id in permissions.get("members", [])
+    )
 
 
 def approval_record_summary(run: dict, current_user: dict) -> dict:
@@ -916,11 +963,14 @@ def approval_record_summary(run: dict, current_user: dict) -> dict:
         "workflowName": run.get("workflowName", ""), "category": run.get("workflowCategory") or "常用流程",
         "status": run.get("status"), "stage": stage, "applicant": run.get("applicant", ""),
         "createdAt": run.get("createdAt", ""), "currentNode": active.get("nodeName", "") if active else "",
+        "taskArrivedAt": active.get("arrivedAt") if active else None,
         "currentHandlers": handlers, "mine": run.get("applicantUsername") == user_id,
+        "delegated": is_delegated_submitter(run, user_id),
         "participating": bool(related), "processed": any(any(item.get("username") == user_id for item in task.get("decisions") or []) for task in tasks),
         "approving": any(task.get("nodeType") == "approval" for task in actionable),
         "executing": any(task.get("nodeType") == "executor" for task in actionable),
         "canHandle": bool(actionable),
+        "copied": any(is_copy_recipient(task, user_id) for task in tasks),
     }
 
 
@@ -932,7 +982,7 @@ def list_approval_records(current_user: dict, scope: str = "applications") -> li
         admin, own, related = approval_record_access(run, current_user)
         # The application catalog is owner-only for employees. Task-related
         # records are requested explicitly by the personal task/status page.
-        if admin or own or (scope == "personal" and related):
+        if admin or own or (scope == "personal" and (related or is_delegated_submitter(run, current_user["username"]))):
             records.append(approval_record_summary(run, current_user))
     return records
 
@@ -942,12 +992,13 @@ def get_approval_record(run_id: str, current_user: dict) -> dict:
     if run is None:
         raise HTTPException(status_code=404, detail="审批记录不存在")
     admin, own, related = approval_record_access(run, current_user)
-    if not admin and not own and not related:
+    delegated = is_delegated_submitter(run, current_user["username"])
+    if not admin and not own and not related and not delegated:
         raise HTTPException(status_code=404, detail="审批记录不存在")
     run = {**run, "canRecall": can_recall_workflow(run, current_user)}
     if admin:
         return run
-    if own:
+    if own or (delegated and not related):
         result = redact_run_for_applicant(run)
     else:
         # Only current handlers or actual past decision makers have task access.
@@ -958,10 +1009,18 @@ def get_approval_record(run_id: str, current_user: dict) -> dict:
         for task in eligible:
             levels = {item.get("fieldId"): item.get("permission") for item in task.get("fieldPermissions") or []}
             visible.update(field["id"] for field in fields if levels.get(field["id"]) != "hidden")
+        applicant_levels = {item.get('fieldId'): item.get('permission') for item in run.get('applicantFieldPermissions') or []}
+        for task in related:
+            if is_copy_recipient(task, current_user['username']):
+                levels = {item.get('fieldId'): item.get('permission') for item in task.get('fieldPermissions') or []}
+                visible.update(field['id'] for field in fields if (
+                    levels.get(field['id']) if levels.get(field['id']) in {'readonly', 'hidden'} else applicant_levels.get(field['id'])
+                ) != 'hidden')
         result = {**run, "values": {key: value for key, value in (run.get("values") or {}).items() if key in visible},
                   "formSchema": {**(run.get("formSchema") or {}), "fields": [field for field in fields if field["id"] in visible]}}
     # Expose progress and decisions, not permission rules or routing predicates.
     result = {**result, "matchedBranches": [], "applicantFieldPermissions": []}
+    result.pop("submittedByActorId", None)
     if result.get("formSchema"):
         result["formSchema"] = {**result["formSchema"], "permissions": {}, "pageSettings": {}}
     result["tasks"] = [

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { PlatformDetailDrawer } from "@platform-ui"
+import ResizableDetailDrawer from './ResizableDetailDrawer.vue'
+import FileUploadField from './FileUploadField.vue'
 import { backdropDismiss as vBackdropDismiss } from "@platform-ui/backdrop-dismiss.js"
 import { computed, onMounted, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, ClipboardList, RefreshCw, Search, X } from '@lucide/vue'
@@ -103,7 +104,7 @@ onMounted(() => { void refresh() })
     </div>
     <footer class="applications-pagination"><span>共 {{ filtered.length }} 条申请记录</span><div><label>每页 <select v-model.number="pageSize"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select></label><span>{{ range }} / {{ filtered.length }}</span><button class="applications-button" aria-label="上一页" :disabled="page <= 1" @click="page--"><ChevronLeft :size="15" /></button><button class="applications-button" aria-label="下一页" :disabled="page >= pageCount" @click="page++"><ChevronRight :size="15" /></button></div></footer>
 
-    <PlatformDetailDrawer v-if="selected" :open="Boolean(selected)" :suspended="false" @close="selected = null">
+    <ResizableDetailDrawer v-if="selected" :open="Boolean(selected)" :suspended="false" @close="selected = null">
       <section class="applications-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-application-title" tabindex="-1">
         <header><div><h2 id="admin-application-title">{{ selected.title }}</h2><p>{{ selected.workflowName }} · 第 {{ selected.workflowVersion }} 版</p></div><button class="applications-button" aria-label="关闭详情" @click="selected = null"><X :size="18" /></button></header>
         <div class="applications-dialog-body">
@@ -111,7 +112,7 @@ onMounted(() => { void refresh() })
           <div class="application-current-step">当前进度：{{ currentStep(selected) }}</div>
           <h3>申请内容 · {{ selected.formSchema?.name || selected.formId }}</h3>
           <div v-if="selected.formSchema?.fields.length" class="application-field-grid">
-            <div v-for="field in selected.formSchema.fields" :key="field.id" :class="['application-field', field.width]"><label>{{ field.label }}</label><p>{{ valueText(selected.values?.[field.id] ?? field.defaultValue) }}</p></div>
+            <div v-for="field in selected.formSchema.fields" :key="field.id" :class="['application-field', field.width]"><label>{{ field.label }}</label><FileUploadField v-if="field.type === 'image' || field.type === 'attachment'" :model-value="selected.values?.[field.id]" :field-id="field.id" :label="field.label" :image="field.type === 'image'" :run-id="selected.id" readonly /><p v-else>{{ valueText(selected.values?.[field.id] ?? field.defaultValue) }}</p></div>
           </div>
           <div v-else-if="Object.keys(selected.values ?? {}).length" class="application-field-grid"><div v-for="(value, key) in selected.values" :key="key" class="application-field"><label>{{ key }}</label><p>{{ valueText(value) }}</p></div></div>
           <p v-else class="applications-muted">没有申请内容</p>
@@ -128,7 +129,7 @@ onMounted(() => { void refresh() })
         </div>
         <footer><button class="applications-button" @click="selected = null">关闭</button></footer>
       </section>
-    </PlatformDetailDrawer>
+    </ResizableDetailDrawer>
   </section>
 </template>
 

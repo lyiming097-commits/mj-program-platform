@@ -1,44 +1,59 @@
 <script setup lang="ts">
-import { PlatformDetailDrawer } from '@platform-ui'
+import ResizableDetailDrawer from './ResizableDetailDrawer.vue'
+import FileUploadField from './FileUploadField.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { FileText, Save, Send, X } from '@lucide/vue'
-import { startWorkflowRun } from './api'
+import ApprovalSubmitPreview from './ApprovalSubmitPreview.vue'
 import { storageForUser } from './storage'
 import { readApplicationDraft, saveApplicationDraft } from './applicationDrafts'
 import type { ApplicationDraft } from './applicationDrafts'
 import type { AuthUser, FormField, FormSchema, FormValue, FormValues, WorkflowRunResult, WorkflowSchema } from './types'
 import './start-approval.css'
 
-const props = defineProps<{ workflow: WorkflowSchema; form: FormSchema; user: AuthUser; directory: AuthUser[]; inline?: boolean }>()
+const props = defineProps<{
+  workflow: WorkflowSchema
+  form: FormSchema
+  user: AuthUser
+  directory: AuthUser[]
+  inline?: boolean
+  recalled?: Pick<WorkflowRunResult, 'id' | 'workflowVersion' | 'formSchema' | 'values'>
+}>()
 const emit = defineEmits<{ close: []; submitted: [run: WorkflowRunResult] }>()
 const permissions = new Map((props.workflow.publishedSnapshot?.applicantFieldPermissions ?? []).map(item => [item.fieldId, item.permission]))
 const fields = computed(() => props.form.fields.filter(field => permissions.get(field.id) !== 'hidden'))
 const editable = (field: FormField) => permissions.get(field.id) !== 'readonly'
 const version = props.workflow.publishedSnapshot?.version ?? props.workflow.publishedVersion ?? 1
 const draftStorage = storageForUser(props.user.username)
-const busy = ref(false)
+const draftKey = props.recalled ? `recalled:${props.recalled.id}` : props.workflow.id
+const submission = ref<InstanceType<typeof ApprovalSubmitPreview>>()
+const busy = computed(() => submission.value?.active ?? false)
+const uploadingFields = ref<string[]>([])
+const uploading = computed(() => uploadingFields.value.length > 0)
+function uploadBusy(fieldId: string, value: boolean) {
+  uploadingFields.value = [...uploadingFields.value.filter(id => id !== fieldId), ...(value ? [fieldId] : [])]
+}
 const error = ref('')
 const invalidFields = ref<string[]>([])
 const draftNotice = ref('')
 
 function initialValue(field: FormField): FormValue {
   if (field.type === 'dateRange') return field.defaultValue?.match(/\d{4}-\d{2}-\d{2}/g)?.slice(0, 2) ?? ['', '']
-  if (field.type === 'checkbox' || field.type === 'multiSelect') return []
+  if (['checkbox', 'multiSelect', 'image', 'attachment'].includes(field.type)) return []
   return field.defaultValue ?? ''
 }
 function defaultValues(): FormValues {
   return Object.fromEntries(fields.value.map(field => [field.id, initialValue(field)]))
 }
-function restoredValues(entry: ApplicationDraft): FormValues {
+function restoredValues(entry: Pick<ApplicationDraft, 'fields' | 'values'>): FormValues {
   const restored = defaultValues()
   for (const field of fields.value) {
     const previousField = entry.fields.find(saved => saved.id === field.id)
     if (entry.fields.length && previousField?.type !== field.type) continue
     const value = entry.values[field.id]
     if (!editable(field) || field.type === 'description') continue
-    if (['checkbox', 'multiSelect', 'dateRange'].includes(field.type)) {
+    if (['checkbox', 'multiSelect', 'dateRange', 'image', 'attachment'].includes(field.type)) {
       if (Array.isArray(value) && value.every(item => typeof item === 'string')) {
-        restored[field.id] = field.type === 'dateRange' ? [value[0] ?? '', value[1] ?? ''] : value.filter(item => field.options.includes(item))
+        restored[field.id] = ['image', 'attachment'].includes(field.type) ? value : field.type === 'dateRange' ? [value[0] ?? '', value[1] ?? ''] : value.filter(item => field.options.includes(item))
       }
     } else if (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value))) {
       if (['select', 'radio'].includes(field.type) && value !== '' && !field.options.includes(String(value))) continue
@@ -48,10 +63,18 @@ function restoredValues(entry: ApplicationDraft): FormValues {
   }
   return restored
 }
-const values = ref<FormValues>(defaultValues())
+const values = ref<FormValues>(props.recalled ? restoredValues({
+  fields: props.recalled.formSchema?.fields ?? [],
+  values: props.recalled.values ?? {},
+}) : defaultValues())
+if (props.recalled) {
+  draftNotice.value = props.recalled.workflowVersion === version
+    ? '已带入原申请内容，请确认后重新提交'
+    : '已按当前表单带入可用内容，请核对变更的字段'
+}
 let draftReadFailed = false
 try {
-  const draft = readApplicationDraft(props.workflow.id, draftStorage)
+  const draft = readApplicationDraft(draftKey, draftStorage)
   if (draft) {
     values.value = restoredValues(draft)
     draftNotice.value = draft.version === version ? '已恢复上次保存的草稿' : '已按当前表单恢复可用的草稿内容，请补充新字段'
@@ -64,12 +87,12 @@ const savedValues = ref(JSON.stringify(values.value))
 const dirty = computed(() => JSON.stringify(values.value) !== savedValues.value)
 
 function canLeave(): boolean {
-  if (busy.value) return false
+  if (busy.value || uploading.value) return false
   return !dirty.value || window.confirm('有尚未保存的填写内容，确定放弃本次修改吗？')
 }
 function requestClose() { if (canLeave()) emit('close') }
 function beforeUnload(event: BeforeUnloadEvent) {
-  if (!props.inline || (!dirty.value && !busy.value)) return
+  if (!dirty.value && !busy.value && !uploading.value) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -77,10 +100,10 @@ onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 defineExpose({ canLeave })
 function saveDraft() {
-  if (busy.value) return
+  if (busy.value || uploading.value) return
   try {
     if (draftReadFailed) throw new Error('无法读取原草稿，暂不能覆盖保存')
-    saveApplicationDraft(props.workflow.id, version, values.value, fields.value, draftStorage)
+    saveApplicationDraft(draftKey, version, values.value, fields.value, draftStorage)
     savedValues.value = JSON.stringify(values.value)
     draftNotice.value = '草稿已保存，下次进入将自动恢复本次内容'
     error.value = ''
@@ -101,8 +124,8 @@ function empty(value: unknown): boolean {
   if (Array.isArray(value)) return !value.some(item => !empty(item))
   return value == null || (typeof value === 'string' && !value.trim())
 }
-async function submit() {
-  if (busy.value) return
+function openSubmissionPreview() {
+  if (busy.value || uploading.value) return
   invalidFields.value = []
   const messages: string[] = []
   for (const field of fields.value) {
@@ -121,27 +144,25 @@ async function submit() {
     document.getElementById(`application-${invalidFields.value[0]}`)?.focus()
     return
   }
-  busy.value = true
   error.value = ''
-  try {
-    const run = await startWorkflowRun(props.workflow.id, { values: JSON.parse(JSON.stringify(values.value)) })
-    savedValues.value = JSON.stringify(values.value)
-    emit('submitted', run)
-  } catch (cause) { error.value = cause instanceof Error ? cause.message : '提交失败，请重试' }
-  finally { busy.value = false }
+  void submission.value?.open({ workflow: props.workflow, form: props.form, values: values.value, recalled: props.recalled })
+}
+function onSubmitted(run: WorkflowRunResult) {
+  savedValues.value = JSON.stringify(values.value)
+  emit('submitted', run)
 }
 </script>
 
 <template>
-  <component :is="inline ? 'div' : PlatformDetailDrawer" :open="inline ? undefined : true" :suspended="busy" :class="{ 'start-inline-shell': inline }" @close="requestClose">
-    <section class="employee-dialog start-form-dialog" :class="{ 'start-form-inline': inline }" :role="inline ? 'region' : 'dialog'" :aria-modal="inline ? undefined : true" :aria-label="`发起${form.name}`">
+  <component :is="inline ? 'div' : ResizableDetailDrawer" :open="inline ? undefined : true" :suspended="busy || uploading" :class="{ 'start-inline-shell': inline }" @close="requestClose">
+    <section class="employee-dialog start-form-dialog" :class="{ 'start-form-inline': inline }" :role="inline ? 'region' : 'dialog'" :aria-modal="inline ? undefined : true" :aria-label="`${recalled ? '重新编辑' : '发起'}${form.name}`">
       <header class="start-approval-header">
         <span class="start-approval-icon"><FileText :size="24" /></span>
-        <div class="start-approval-heading"><h2>发起{{ form.name }}</h2><p>填写申请内容后提交审批</p></div>
+        <div class="start-approval-heading"><h2>{{ recalled ? '重新编辑' : '发起' }}{{ form.name }}</h2><p>{{ recalled ? '提交后将发起一条新的审批' : '填写申请内容后提交审批' }}</p></div>
         <button v-if="!inline" class="start-approval-close" aria-label="关闭" :disabled="busy" @click="requestClose"><X :size="20" /></button>
       </header>
       <div class="employee-dialog-body start-approval-body">
-        <form id="start-approval-form" class="start-approval-card" novalidate @submit.prevent="submit">
+        <form id="start-approval-form" class="start-approval-card" novalidate @submit.prevent="openSubmissionPreview">
           <div class="start-approval-form-grid">
             <div v-for="field in fields" :key="field.id" :class="['start-approval-field', field.width, { invalid: invalidFields.includes(field.id) }]">
               <label :for="`application-${field.id}`"><span>{{ field.label }}<i v-if="field.required" aria-hidden="true"> *</i></span><small v-if="!editable(field)">只读</small></label>
@@ -161,16 +182,20 @@ async function submit() {
               <select v-else-if="field.type === 'member'" :id="`application-${field.id}`" v-model="values[field.id]" :disabled="!editable(field) || busy" :aria-required="field.required">
                 <option value="" disabled>{{ field.placeholder || '请选择成员' }}</option><option v-for="person in directory" :key="person.username" :value="person.username">{{ person.displayName }} · {{ person.department }}（{{ person.username }}）</option>
               </select>
-              <div v-else-if="field.type === 'image' || field.type === 'attachment'" class="start-upload-placeholder">{{ field.type === 'image' ? '暂未接入图片上传' : '暂未接入附件上传' }}</div>
+              <FileUploadField v-else-if="field.type === 'image' || field.type === 'attachment'" :model-value="values[field.id]" :field-id="field.id" :label="field.label" :image="field.type === 'image'" :workflow-id="workflow.id" :run-id="recalled?.id" :readonly="!editable(field)" :disabled="busy" @update:model-value="values[field.id] = $event" @busy="uploadBusy(field.id, $event)" />
               <input v-else :id="`application-${field.id}`" v-model="values[field.id] as string" :readonly="!editable(field) || busy" :type="field.type === 'number' || field.type === 'rating' ? 'number' : field.type === 'date' ? 'date' : 'text'" :min="field.type === 'rating' ? 1 : undefined" :max="field.type === 'rating' ? (field.max || 5) : undefined" :step="field.type === 'number' ? 'any' : field.type === 'rating' ? '1' : undefined" :aria-required="field.required" :aria-invalid="invalidFields.includes(field.id)" :placeholder="field.placeholder" />
             </div>
           </div>
         </form>
       </div>
       <footer class="start-approval-footer">
-        <div class="start-footer-message"><p v-if="error" class="start-submit-error" role="alert">{{ error }}</p><p v-else role="status">{{ draftNotice || '草稿仅保存在当前账号的本机浏览器中' }}</p></div>
-        <div class="start-footer-actions"><button type="button" class="start-save-button" :disabled="busy" @click="saveDraft"><Save :size="16" />保存草稿</button><button type="submit" form="start-approval-form" class="start-submit-button" :disabled="busy"><Send :size="16" />{{ busy ? '提交中…' : '提交审批' }}</button></div>
+        <div v-if="error || draftNotice" class="start-footer-message">
+          <p v-if="error" class="start-submit-error" role="alert">{{ error }}</p>
+          <p v-else role="status">{{ draftNotice }}</p>
+        </div>
+        <div class="start-footer-actions"><button type="button" class="start-save-button" :disabled="busy || uploading" @click="saveDraft"><Save :size="16" />保存草稿</button><button type="submit" form="start-approval-form" class="start-submit-button" :disabled="busy || uploading"><Send :size="16" />{{ uploading ? '文件上传中…' : '提交' }}</button></div>
       </footer>
     </section>
   </component>
+  <ApprovalSubmitPreview ref="submission" :directory="directory" @submitted="onSubmitted" />
 </template>

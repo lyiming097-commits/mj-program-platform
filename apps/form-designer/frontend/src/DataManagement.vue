@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { PlatformDetailDrawer } from "@platform-ui"
+import ResizableDetailDrawer from './ResizableDetailDrawer.vue'
+import FileUploadField from './FileUploadField.vue'
 import { backdropDismiss as vBackdropDismiss } from "@platform-ui/backdrop-dismiss.js"
 import { computed, onMounted, ref, watch } from 'vue'
 import {
@@ -8,7 +9,7 @@ import {
   Search, SlidersHorizontal, Trash2, Upload, X,
 } from '@lucide/vue'
 import { createFormRecord, deleteFormRecord, listFormRecords, restoreFormRecord, updateFormRecord } from './api'
-import type { FormField, FormRecord, FormSchema } from './types'
+import type { FormField, FormRecord, FormSchema, FormValues } from './types'
 import AdminApplications from './AdminApplications.vue'
 
 const props = defineProps<{ form: FormSchema; initialView?: 'applications' | 'records' }>()
@@ -31,7 +32,7 @@ const pageSize = ref(10)
 const dialogOpen = ref(false)
 let draftSnapshot = ''
 const editingRecordId = ref<string | null>(null)
-const draft = ref({ title: '', applicant: '钟小康', values: {} as Record<string, string> })
+const draft = ref({ title: '', applicant: '钟小康', values: {} as FormValues })
 const error = ref('')
 const notice = ref('')
 const busy = ref(false)
@@ -71,7 +72,9 @@ const currentRange = computed(() => filteredRecords.value.length ? `${(page.valu
 function getValue(record: FormRecord, columnId: string): string {
   if (columnId === '__title') return record.title
   if (columnId === '__applicant') return record.applicant
-  return record.values[columnId] ?? ''
+  const value = record.values[columnId]
+  if (Array.isArray(value)) return ['image', 'attachment'].includes(getField(columnId)?.type ?? '') ? (value.length ? `${value.length} 个文件` : '') : value.join('、')
+  return value == null ? '' : String(value)
 }
 function getField(columnId: string): FormField | undefined { return props.form.fields.find((field) => field.id === columnId) }
 function toggleSort(columnId: string) {
@@ -138,10 +141,10 @@ async function saveRecord() {
     busy.value = false
   }
 }
-async function removeRecord(record: FormRecord, permanent = false) {
-  if (permanent && !window.confirm(`永久删除“${record.title}”？此操作无法撤销。`)) return
+async function removeRecord(record: FormRecord) {
+  if (recycleMode.value) return
   try {
-    await deleteFormRecord(props.form.id, record.id, permanent)
+    await deleteFormRecord(props.form.id, record.id)
     selectedIds.value = selectedIds.value.filter((id) => id !== record.id)
     await refresh()
   } catch (cause) { error.value = cause instanceof Error ? cause.message : '删除失败' }
@@ -151,9 +154,9 @@ async function restoreRecord(record: FormRecord) {
   catch (cause) { error.value = cause instanceof Error ? cause.message : '恢复失败' }
 }
 async function removeSelected() {
+  if (recycleMode.value) return
   const current = activeRecords.value.filter((record) => selectedIds.value.includes(record.id))
-  if (recycleMode.value && !window.confirm(`永久删除所选的 ${current.length} 条记录？此操作无法撤销。`)) return
-  for (const record of current) await deleteFormRecord(props.form.id, record.id, recycleMode.value)
+  for (const record of current) await deleteFormRecord(props.form.id, record.id)
   selectedIds.value = []
   await refresh()
 }
@@ -259,7 +262,7 @@ function closeRecord() {
         <label v-if="!recycleMode" class="records-tool-button import-tool"><Upload :size="14" />导入<input ref="fileInput" type="file" accept="application/json,.json" @change="importRecords" /></label>
         <button v-if="!recycleMode" class="records-tool-button" @click="exportRecords"><ArrowDownToLine :size="14" />导出</button>
         <button :class="['records-tool-button', { active: recycleMode }]" @click="toggleRecycle"><Database v-if="!recycleMode" :size="14" /><RotateCcw v-else :size="14" />{{ recycleMode ? '返回数据' : `回收站${recycleRecords.length ? ` (${recycleRecords.length})` : ''}` }}</button>
-        <div class="toolbar-popover-anchor"><button class="records-tool-button" @click="moreOpen = !moreOpen"><MoreHorizontal :size="15" />更多</button><div v-if="moreOpen" class="records-popover more-popover"><button @click="exportJson"><Download :size="14" />导出 JSON</button><button v-if="selectedCount" @click="removeSelected"><Trash2 :size="14" />{{ recycleMode ? '永久删除所选' : '删除所选' }}（{{ selectedCount }}）</button></div></div>
+        <div class="toolbar-popover-anchor"><button class="records-tool-button" @click="moreOpen = !moreOpen"><MoreHorizontal :size="15" />更多</button><div v-if="moreOpen" class="records-popover more-popover"><button @click="exportJson"><Download :size="14" />导出 JSON</button><button v-if="selectedCount && !recycleMode" @click="removeSelected"><Trash2 :size="14" />删除所选（{{ selectedCount }}）</button></div></div>
       </div>
       <div class="records-secondary-actions">
         <button class="records-tool-button analysis-button" @click="showToast('分析视图正在准备中')"><SlidersHorizontal :size="14" />分析 <span>Beta</span></button>
@@ -271,7 +274,7 @@ function closeRecord() {
         <button class="records-icon-button" title="全屏" aria-label="全屏" @click="toggleFullscreen"><Maximize2 :size="15" /></button>
       </div>
     </div>
-    <div v-if="recycleMode" class="recycle-banner"><RotateCcw :size="14" />回收站中的记录可恢复，永久删除后将无法找回。</div>
+    <div v-if="recycleMode" class="recycle-banner"><RotateCcw :size="14" />回收站中的记录可恢复。</div>
     <div v-if="error" class="records-message"><span>{{ error }}</span><button @click="error = ''" aria-label="关闭提示"><X :size="14" /></button></div>
     <div class="records-table-wrap">
       <table class="records-table">
@@ -286,8 +289,8 @@ function closeRecord() {
             <tr :class="{ selected: selectedIds.includes(record.id) }">
               <td class="check-col"><input type="checkbox" :aria-label="`选择${record.title}`" :checked="selectedIds.includes(record.id)" @change="toggleSelection(record.id)" /></td>
               <td class="expand-col"><button class="expand-row-button" :aria-label="expandedIds.includes(record.id) ? '收起详情' : '展开详情'" @click="toggleExpanded(record.id)"><ChevronRight :size="15" :class="{ rotated: expandedIds.includes(record.id) }" /></button></td>
-              <td v-for="column in visibleColumns" :key="column.id" class="data-cell" :title="displayValue(record, column.id)"><button v-if="column.id === '__title'" class="record-title-link" @click="editRecord(record)">{{ displayValue(record, column.id) }}</button><span v-else-if="column.id === '__applicant'" class="applicant-cell"><i>{{ record.applicant.slice(0, 1) }}</i>{{ record.applicant }}</span><span v-else-if="getField(column.id)?.type === 'date'" class="muted-cell">{{ displayValue(record, column.id) }}</span><span v-else-if="getField(column.id)?.type === 'attachment' || getField(column.id)?.type === 'image'" class="attachment-cell"><FileInput :size="13" />{{ displayValue(record, column.id) }}</span><span v-else-if="getField(column.id)?.type === 'select' || getField(column.id)?.type === 'radio'" class="value-tag">{{ displayValue(record, column.id) }}</span><span v-else :class="{ 'muted-cell': displayValue(record, column.id) === '--' }">{{ displayValue(record, column.id) }}</span></td>
-              <td class="row-actions"><template v-if="recycleMode"><button @click="restoreRecord(record)">恢复</button><button class="danger-link" @click="removeRecord(record, true)">永久删除</button></template><template v-else><button @click="editRecord(record)">详情</button><button class="danger-link" @click="removeRecord(record)">删除</button><button class="row-more" :aria-label="`更多${record.title}操作`" @click="toggleExpanded(record.id)">更多 <ChevronDown :size="13" /></button></template></td>
+              <td v-for="column in visibleColumns" :key="column.id" class="data-cell" :title="displayValue(record, column.id)"><button v-if="column.id === '__title'" class="record-title-link" @click="editRecord(record)">{{ displayValue(record, column.id) }}</button><span v-else-if="column.id === '__applicant'" class="applicant-cell"><i>{{ record.applicant.slice(0, 1) }}</i>{{ record.applicant }}</span><span v-else-if="getField(column.id)?.type === 'date'" class="muted-cell">{{ displayValue(record, column.id) }}</span><button v-else-if="getField(column.id)?.type === 'attachment' || getField(column.id)?.type === 'image'" class="record-title-link attachment-cell" aria-label="查看文件" @click="editRecord(record)"><FileInput :size="13" />{{ displayValue(record, column.id) }}</button><span v-else-if="getField(column.id)?.type === 'select' || getField(column.id)?.type === 'radio'" class="value-tag">{{ displayValue(record, column.id) }}</span><span v-else :class="{ 'muted-cell': displayValue(record, column.id) === '--' }">{{ displayValue(record, column.id) }}</span></td>
+              <td class="row-actions"><template v-if="recycleMode"><button @click="restoreRecord(record)">恢复</button></template><template v-else><button @click="editRecord(record)">详情</button><button class="danger-link" @click="removeRecord(record)">删除</button><button class="row-more" :aria-label="`更多${record.title}操作`" @click="toggleExpanded(record.id)">更多 <ChevronDown :size="13" /></button></template></td>
             </tr>
             <tr v-if="expandedIds.includes(record.id)" class="expanded-row"><td :colspan="visibleColumns.length + 3"><div><span>记录编号 {{ record.id.slice(0, 12) }}</span><span>提交时间 {{ formatDate(record.createdAt) }}</span><span>申请人 {{ record.applicant }}</span><button v-if="!recycleMode" @click="editRecord(record)">编辑记录</button></div></td></tr>
           </template>
@@ -297,18 +300,18 @@ function closeRecord() {
     </div>
     <footer class="records-footer"><span>共 {{ filteredRecords.length }} 条记录</span><span v-if="selectedCount" class="selection-count">已选 {{ selectedCount }} 条 <button @click="selectedIds = []">清除</button></span><div class="pagination"><span>每页</span><select v-model.number="pageSize" @change="page = 1"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select><span>{{ currentRange }} / {{ filteredRecords.length }}</span><button aria-label="上一页" :disabled="page <= 1" @click="page--"><ChevronRight :size="14" class="previous-icon" /></button><button aria-label="下一页" :disabled="page >= pageCount" @click="page++"><ChevronRight :size="14" /></button></div></footer>
 
-    <PlatformDetailDrawer v-if="dialogOpen" :open="Boolean(dialogOpen)" :suspended="busy" @close="closeRecord">
+    <ResizableDetailDrawer v-if="dialogOpen" :open="Boolean(dialogOpen)" :suspended="busy" @close="closeRecord">
       <section class="record-dialog" role="dialog" aria-modal="true" :aria-label="editingRecordId ? '记录详情' : '新增记录'">
         <header><div><strong>{{ editingRecordId ? '记录详情' : '新增记录' }}</strong><span>{{ form.name }}</span></div><button class="records-icon-button" aria-label="关闭" @click="closeRecord"><X :size="18" /></button></header>
         <div class="record-dialog-content">
           <div class="record-dialog-field"><label>申请标题 <i>*</i></label><input v-model="draft.title" class="setting-input" placeholder="填写记录标题" /></div>
           <div class="record-dialog-field"><label>申请人</label><select v-model="draft.applicant" class="setting-input"><option v-for="person in ['钟小康', '张三', '李四', '王经理', '陈主管']" :key="person">{{ person }}</option></select></div>
-          <div v-for="field in form.fields" :key="field.id" class="record-dialog-field"><label>{{ field.label }} <i v-if="field.required">*</i></label><div v-if="field.type === 'description'" class="record-readonly">{{ field.defaultValue || '--' }}</div><textarea v-else-if="field.type === 'textarea'" v-model="draft.values[field.id]" class="setting-input record-textarea" :placeholder="field.placeholder" rows="3"></textarea><select v-else-if="field.type === 'select' || field.type === 'radio'" v-model="draft.values[field.id]" class="setting-input"><option value="">{{ field.placeholder || '请选择' }}</option><option v-for="option in field.options" :key="option">{{ option }}</option></select><input v-else v-model="draft.values[field.id]" class="setting-input" :type="field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'" :placeholder="field.placeholder" /></div>
+          <div v-for="field in form.fields" :key="field.id" class="record-dialog-field"><label>{{ field.label }} <i v-if="field.required">*</i></label><div v-if="field.type === 'description'" class="record-readonly">{{ field.defaultValue || '--' }}</div><FileUploadField v-else-if="field.type === 'image' || field.type === 'attachment'" :model-value="draft.values[field.id]" :field-id="field.id" :label="field.label" :image="field.type === 'image'" :record-id="editingRecordId ?? undefined" readonly /><textarea v-else-if="field.type === 'textarea'" v-model="draft.values[field.id] as string" class="setting-input record-textarea" :placeholder="field.placeholder" rows="3"></textarea><select v-else-if="field.type === 'select' || field.type === 'radio'" v-model="draft.values[field.id]" class="setting-input"><option value="">{{ field.placeholder || '请选择' }}</option><option v-for="option in field.options" :key="option">{{ option }}</option></select><input v-else v-model="draft.values[field.id] as string" class="setting-input" :type="field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'" :placeholder="field.placeholder" /></div>
           <p v-if="error" class="record-dialog-error">{{ error }}</p>
         </div>
         <footer><button class="records-tool-button" @click="closeRecord">取消</button><button class="records-add-button" :disabled="busy" @click="saveRecord"><Check :size="14" />{{ busy ? '保存中' : '保存' }}</button></footer>
       </section>
-    </PlatformDetailDrawer>
+    </ResizableDetailDrawer>
   </div>
   </div>
 </template>

@@ -59,16 +59,40 @@
 .application-status.completed{background:#eaf6ef;color:#368363}
 .application-status.rejected,.application-status.returned{background:#fff0ef;color:#b5544b}
 .application-status.recalled,.application-status.cancelled{background:#f1f3f5;color:#8794a0}
-.application-context{display:flex;flex-wrap:wrap;gap:7px 20px;padding:11px 17px;border-bottom:1px solid #edf0f3;background:#fafbfd;color:#8c9aa8;font-size:8px}
-.application-context b{margin-left:4px;color:#526a81;font-weight:550}
+.application-context{display:flex;flex-wrap:wrap;gap:7px 20px;padding:11px 17px;border-bottom:1px solid #e2e8f0;background:#f7f9fc;color:#596e86;font-size:12px}
+.application-context b{margin-left:4px;color:#344b63;font-weight:550}
 .application-dialog{width:min(740px,100%)}
-.application-detail-body{display:flex;flex-direction:column;gap:17px}
-.application-current{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border-left:3px solid #3783ce;background:#f3f8fd;color:#8292a1;font-size:9px}
-.application-current b{color:#376a9a;font-size:10px;font-weight:600;text-align:right}
-.application-detail-section h3{margin:0 0 10px;color:#40566d;font-size:10px;font-weight:650}
-.application-values{gap:11px 13px}
-.application-value{min-height:30px;margin:0;padding:7px 8px;border:1px solid #e4e9ee;border-radius:4px;background:#fbfcfd;color:#51667a;font-size:9px;overflow-wrap:anywhere;white-space:pre-wrap}
-.application-no-fields{padding:12px 0;color:#9aa6b1;font-size:9px}
+.application-dialog .employee-dialog-heading b{font-size:16px}
+.application-dialog .employee-dialog-heading small{color:#596e86;font-size:12px}
+.application-detail-body{display:flex;flex-direction:column;gap:16px;background:#f5f7fb}
+.application-form-card{
+  container-type:inline-size;min-width:0;
+  border:1px solid #d9e3ef;border-radius:9px;background:#fff;
+}
+.application-form-heading{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:12px 16px;border-bottom:1px solid #d9e3ef;
+}
+.application-form-heading h3{
+  display:flex;align-items:center;gap:8px;margin:0;
+  color:#20354c;font-size:14px;font-weight:650;
+}
+.application-form-heading svg{flex:none;color:#176ac4}
+.application-form-heading span{color:#596e86;font-size:12px;white-space:nowrap}
+.application-form-content{padding:14px 16px 16px}
+.application-detail-section h3{margin:0 0 10px;color:#20354c;font-size:14px;font-weight:650}
+.application-form-content .application-values{gap:12px 14px;margin:0}
+.application-values dt{margin-bottom:5px;color:#596e86;font-size:12px;overflow-wrap:anywhere}
+.application-values dd{margin:0}
+.application-value{
+  min-height:34px;margin:0;padding:7px 10px;border:1px solid #d9e3ef;border-radius:5px;
+  background:#f7f9fc;color:#20354c;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap;
+}
+.application-no-fields{margin:0;padding:12px 0;color:#596e86;font-size:12px}
+@container (max-width:440px){
+  .application-form-card .application-values{grid-template-columns:minmax(0,1fr)}
+  .application-values .employee-form-field.full{grid-column:auto}
+}
 .application-timeline{position:relative;display:flex;flex-direction:column;gap:0;margin:0;padding:0 0 0 2px;list-style:none}
 .application-timeline-item{position:relative;display:flex;gap:10px;padding:0 0 17px}
 .application-timeline-item:not(:last-child)::after{position:absolute;top:25px;bottom:0;left:12px;width:1px;background:#e4e9ee;content:""}
@@ -78,8 +102,9 @@
 .application-timeline-item.rejected .application-timeline-marker,.application-timeline-item.returned .application-timeline-marker{border-color:#f0d1cd;background:#fff5f4;color:#b5544b}
 .application-timeline-content{min-width:0;flex:1;padding-top:2px}
 .application-timeline-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
-.application-timeline-heading>b{color:#465d73;font-size:9px;font-weight:600}
-.application-timeline-content>small{display:block;color:#94a1ad;font-size:8px;line-height:1.5;overflow-wrap:anywhere}
+.application-timeline-heading>b{color:#20354c;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.application-timeline-content>small{display:block;color:#596e86;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.application-timeline .application-status{font-size:11px;flex:none}
 .application-decisions{margin-top:8px;padding-left:9px;border-left:2px solid #e8edf2}
 .application-decision{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:4px 0;color:#61768a;font-size:8px}
 .application-decision>span{min-width:0}

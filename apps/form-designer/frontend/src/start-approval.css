@@ -1,4 +1,4 @@
-.start-form-dialog{color:#27364b}
+.start-form-dialog{color:#27364b;container:start-approval / inline-size}
 .employee-dialog.start-form-dialog>header.start-approval-header{flex:none;min-height:104px;display:flex;align-items:center;gap:14px;padding:24px 30px;border-bottom:1px solid #e7ebf1;background:#fff}
 .start-approval-icon{width:48px;height:48px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ff;color:#397fee}
 .start-approval-heading{min-width:0;flex:1}
@@ -30,8 +30,19 @@
 .start-choice-list:disabled{opacity:.65}
 .start-field-description{margin:0;color:#7f8b9b;font-size:14px;line-height:1.7;white-space:pre-wrap}
 .start-upload-placeholder{padding:20px;border:1px dashed #dce2ea;border-radius:7px;background:#fafbfd;color:#96a1b1;font-size:13px;text-align:center}
-.employee-dialog.start-form-dialog>footer.start-approval-footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 30px;border-top:1px solid #e5eaf1;background:#fff;box-shadow:0 -4px 14px #263e5c03}
-.start-footer-message{flex:1;min-width:0}
+.employee-dialog.start-form-dialog>footer.start-approval-footer{
+  flex:none;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:16px;
+  padding:18px 30px;
+  border-top:1px solid #e5eaf1;
+  background:#fff;
+  box-shadow:0 -4px 14px #263e5c03;
+}
+.start-footer-message{min-width:0}
+.start-approval-footer>.start-footer-actions{grid-column:2;justify-self:center;justify-content:center;flex-wrap:wrap;max-width:100%}
 .start-footer-message p{margin:0;color:#98a3b2;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .start-footer-message p.start-submit-error{color:#cc5555}
 .start-footer-actions{display:flex;gap:12px;flex:none}
@@ -47,11 +58,20 @@
 .start-approval-heading p{font-size:12px}
 .employee-dialog.start-form-dialog>.employee-dialog-body.start-approval-body{padding:16px;gap:16px}
 .start-approval-card{padding:20px 17px;border-radius:10px}
-.employee-dialog.start-form-dialog>footer.start-approval-footer{flex-direction:column;align-items:stretch;gap:10px;padding:13px 16px max(13px,env(safe-area-inset-bottom))}
 .start-footer-actions button{flex:1}
-.start-footer-message p{font-size:11px}
 .start-date-range{gap:8px}
 .start-approval-field input:not([type=checkbox]):not([type=radio]){padding:10px 8px}
+}
+
+@container start-approval (max-width:640px){
+  .employee-dialog.start-form-dialog>footer.start-approval-footer{
+    grid-template-columns:minmax(0,1fr);
+    gap:10px;
+    padding:13px 16px max(13px,env(safe-area-inset-bottom));
+  }
+  .start-footer-message{text-align:center}
+  .start-footer-message p{font-size:11px}
+  .start-approval-footer>.start-footer-actions{grid-column:1}
 }
 
 .start-inline-shell{min-width:0;width:100%;padding-bottom:14px}

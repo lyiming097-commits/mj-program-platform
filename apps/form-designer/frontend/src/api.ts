@@ -1,8 +1,40 @@
 import type { ApprovalCreated, ApprovalRecord, AuthUser, CategorySupervisorConfig, FormRecord, FormSchema, FormValues, SupervisorDirectory, WorkflowRunResult, WorkflowPreview, WorkflowSchema, WorkflowTaskInboxItem } from './types'
+import type { PersonnelFlow, PersonnelImpact, WorkflowCategoryDefinition, WorkflowCategorySettings } from './types'
 
 import { apiFetchRaw, logoutLoginSession } from './session'
+import type { UploadedFileInfo } from './types'
 function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
   return apiFetchRaw(input.replace(/^\/api\//, '/api/form-designer/'), { ...init, credentials: 'same-origin' })
+}
+
+export async function uploadFieldFile(file: File, workflowId: string, fieldId: string, runId?: string, taskId?: string): Promise<UploadedFileInfo> {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('workflowId', workflowId)
+  body.append('fieldId', fieldId)
+  if (runId) body.append('runId', runId)
+  if (taskId) body.append('taskId', taskId)
+  const response = await apiFetch('/api/uploads', { method: 'POST', body })
+  if (!response.ok) throw await apiError(response, '上传失败，请重试')
+  return response.json() as Promise<UploadedFileInfo>
+}
+
+function fileQuery(runId?: string, recordId?: string, inline = false) {
+  const query = new URLSearchParams()
+  if (runId) query.set('runId', runId)
+  if (recordId) query.set('recordId', recordId)
+  if (inline) query.set('inline', 'true')
+  return query.size ? '?' + query.toString() : ''
+}
+export async function readUploadedFile(id: string, runId?: string, recordId?: string): Promise<UploadedFileInfo> {
+  const response = await apiFetch(`/api/uploads/${encodeURIComponent(id)}${fileQuery(runId, recordId)}`)
+  if (!response.ok) throw await apiError(response, '文件信息读取失败')
+  return response.json() as Promise<UploadedFileInfo>
+}
+export async function readUploadedBlob(id: string, runId?: string, recordId?: string, inline = false): Promise<Blob> {
+  const response = await apiFetch(`/api/uploads/${encodeURIComponent(id)}/content${fileQuery(runId, recordId, inline)}`)
+  if (!response.ok) throw await apiError(response, '文件读取失败')
+  return response.blob()
 }
 
 async function apiError(response: Response, fallback: string): Promise<Error> {
@@ -31,10 +63,10 @@ export async function listForms(): Promise<FormSchema[]> {
 export async function saveForm(form: FormSchema): Promise<FormSchema> {
   const response = await apiFetch(`/api/forms/${form.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(form.updatedAt ? { 'X-Form-Updated-At': form.updatedAt } : {}) },
     body: JSON.stringify(form),
   })
-  if (!response.ok) throw new Error('保存失败，请检查 Python 服务是否已启动')
+  if (!response.ok) throw await apiError(response, '表单保存失败，请重试')
   return response.json() as Promise<FormSchema>
 }
 
@@ -61,8 +93,8 @@ export async function updateFormRecord(formId: string, record: FormRecord): Prom
   return response.json() as Promise<FormRecord>
 }
 
-export async function deleteFormRecord(formId: string, recordId: string, permanent = false): Promise<void> {
-  const response = await apiFetch(`/api/forms/${formId}/records/${recordId}${permanent ? '?permanent=true' : ''}`, { method: 'DELETE' })
+export async function deleteFormRecord(formId: string, recordId: string): Promise<void> {
+  const response = await apiFetch(`/api/forms/${formId}/records/${recordId}`, { method: 'DELETE' })
   if (!response.ok) throw new Error('删除记录失败')
 }
 
@@ -84,10 +116,16 @@ export async function listWorkflows(recycle = false): Promise<WorkflowSchema[]> 
   return response.json() as Promise<WorkflowSchema[]>
 }
 
+export async function listWorkflowAudit(): Promise<Array<{ id: number; action: string; actorId: string; effectiveUserId: string; createdAt: string }>> {
+  const response = await apiFetch('/api/workflow-audit')
+  if (!response.ok) throw await apiError(response, '无法读取流程操作记录')
+  return response.json()
+}
+
 export async function saveWorkflow(workflow: WorkflowSchema): Promise<WorkflowSchema> {
   const response = await apiFetch(`/api/workflows/${workflow.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(workflow.updatedAt ? { 'X-Workflow-Updated-At': workflow.updatedAt } : {}) },
     body: JSON.stringify(workflow),
   })
   if (!response.ok) throw await apiError(response, '工作流保存失败')
@@ -124,7 +162,15 @@ export async function previewWorkflowRun(id: string, payload: { values: FormValu
   return response.json() as Promise<WorkflowPreview>
 }
 
-export async function startWorkflowRun(id: string, payload: { values: FormValues }): Promise<WorkflowRunResult> {
+export async function renameWorkflow(id: string, name: string, updatedAt: string): Promise<{ workflow: WorkflowSchema; forms: FormSchema[] }> {
+  const response = await apiFetch(`/api/workflows/${encodeURIComponent(id)}/name`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, updatedAt }),
+  })
+  if (!response.ok) throw await apiError(response, '流程名称保存失败')
+  return response.json()
+}
+
+export async function startWorkflowRun(id: string, payload: { values: FormValues; expectedVersion?: number }): Promise<WorkflowRunResult> {
   const response = await apiFetch(`/api/workflows/${id}/runs`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   })
@@ -203,9 +249,11 @@ export async function loadApprovalRecord(id: string): Promise<WorkflowRunResult>
   if (!response.ok) throw await apiError(response, '无法读取审批详情')
   return response.json()
 }
-export async function createApproval(payload: { name: string; category: string; description: string; assignees: string[] }): Promise<ApprovalCreated> {
-  const response = await apiFetch('/api/approvals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-  if (!response.ok) throw await apiError(response, '新建审批失败')
+export async function saveNewApprovalDraft(workflow: WorkflowSchema, form: FormSchema): Promise<ApprovalCreated> {
+  const response = await apiFetch(`/api/approval-drafts/${encodeURIComponent(workflow.id)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workflow, form }),
+  })
+  if (!response.ok) throw await apiError(response, '保存审批草稿失败')
   return response.json()
 }
 
@@ -224,5 +272,47 @@ export async function getSupervisorDirectory(): Promise<SupervisorDirectory> {
 export async function saveCategorySupervisors(payload: { category: string; supervisorUserIds: string[]; revision: string; orgRevision: string }): Promise<CategorySupervisorConfig> {
   const response = await apiFetch('/api/category-supervisors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
   if (!response.ok) throw Object.assign(await apiError(response, '保存分类主管失败'), { status: response.status })
+  return response.json()
+}
+
+export async function listWorkflowCategories(): Promise<WorkflowCategoryDefinition[]> {
+  const response = await apiFetch('/api/workflow-categories')
+  if (!response.ok) throw await apiError(response, '无法读取流程分类')
+  return response.json()
+}
+
+export async function getWorkflowCategorySettings(): Promise<WorkflowCategorySettings> {
+  const response = await apiFetch('/api/workflow-category-settings')
+  if (!response.ok) throw await apiError(response, '无法读取流程设置')
+  return response.json()
+}
+
+export async function saveWorkflowCategory(payload: { key?: string; name: string; supervisorUserIds: string[]; administratorUserIds: string[]; revision: string; orgRevision: string }): Promise<WorkflowCategoryDefinition> {
+  const response = await apiFetch('/api/workflow-category-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+  if (!response.ok) throw Object.assign(await apiError(response, '保存流程失败'), { status: response.status })
+  return response.json()
+}
+
+export async function getPersonnelImpact(userId = ''): Promise<PersonnelImpact> {
+  const response = await apiFetch('/api/workflow-personnel' + (userId ? '?userId=' + encodeURIComponent(userId) : ''))
+  if (!response.ok) throw await apiError(response, '人员排查失败')
+  return response.json()
+}
+
+export async function changeWorkflowCategoryStatus(key: string, action: 'delete' | 'restore', revision?: string): Promise<WorkflowCategoryDefinition> {
+  const response = await apiFetch('/api/workflow-category-settings/lifecycle', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, action, revision }),
+  })
+  if (!response.ok) throw await apiError(response, '分组状态修改失败')
+  return response.json() as Promise<WorkflowCategoryDefinition>
+}
+
+export async function savePersonnelAssignment(change: {
+  workflowId: string; nodeId: string; updatedAt: string; source: string; target: string; assignees: string[]
+}): Promise<{ workflow: WorkflowSchema; flow: PersonnelFlow }> {
+  const response = await apiFetch('/api/workflow-personnel/assignees', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(change),
+  })
+  if (!response.ok) throw await apiError(response, '人员修改保存失败')
   return response.json()
 }
